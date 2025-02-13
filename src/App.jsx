@@ -68,11 +68,13 @@ const App = () => {
 
   const handleCompute = async () => {
     try {
-      const response = await fetch("http://localhost:5001/compute-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locations: addresses }),
-      });
+      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+      fetch(`${backendUrl}/compute-location`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locations: addresses, venueQuery }),
+      })
+
   
       if (!response.ok) {
         const error = await response.json();
