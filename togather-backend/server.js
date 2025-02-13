@@ -10,12 +10,9 @@ const axios = require("axios");
 const geocodeAddress = async (address) => {
   try {
     console.log("Geocoding address:", address);
-    const response = await axios.get(
-      "https://maps.googleapis.com/maps/api/geocode/json",
-      {
-        params: { address, key: GOOGLE_MAPS_API_KEY },
-      }
-    );
+    const response = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
+      params: { address, key: GOOGLE_MAPS_API_KEY },
+    });
     console.log("Geocode response for address:", address, response.data);
     const location = response.data.results[0]?.geometry?.location;
     return location ? { lat: location.lat, lng: location.lng } : null;
@@ -30,9 +27,7 @@ const computeEpicenter = async (addresses) => {
   const geocodedLocations = [];
   for (const address of addresses) {
     const location = await geocodeAddress(address);
-    if (location) {
-      geocodedLocations.push(location);
-    }
+    if (location) geocodedLocations.push(location);
   }
   if (geocodedLocations.length === 0) return null;
   const latSum = geocodedLocations.reduce((sum, loc) => sum + loc.lat, 0);
@@ -43,17 +38,14 @@ const computeEpicenter = async (addresses) => {
 // For one origin to a given destination using a specified transport mode.
 const getTravelTimeForOrigin = async (origin, destination, mode) => {
   try {
-    const response = await axios.get(
-      "https://maps.googleapis.com/maps/api/distancematrix/json",
-      {
-        params: {
-          origins: origin,
-          destinations: destination,
-          mode,
-          key: GOOGLE_MAPS_API_KEY,
-        },
-      }
-    );
+    const response = await axios.get("https://maps.googleapis.com/maps/api/distancematrix/json", {
+      params: {
+        origins: origin,
+        destinations: destination,
+        mode,
+        key: GOOGLE_MAPS_API_KEY,
+      },
+    });
     const duration = response.data.rows[0].elements[0].duration?.value;
     return duration || Infinity;
   } catch (error) {
@@ -62,22 +54,19 @@ const getTravelTimeForOrigin = async (origin, destination, mode) => {
   }
 };
 
-// Lookup a nearby venue based on a search keyword.
+// Lookup a nearby venue using a fixed search keyword.
 const lookupVenue = async (location, keyword) => {
   try {
-    const response = await axios.get(
-      "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
-      {
-        params: {
-          location: `${location.lat},${location.lng}`,
-          radius: 1500, // in meters
-          keyword, // fixed search term
-          key: GOOGLE_MAPS_API_KEY,
-        },
-      }
-    );
+    const response = await axios.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json", {
+      params: {
+        location: `${location.lat},${location.lng}`,
+        radius: 1500,
+        keyword, // fixed search term
+        key: GOOGLE_MAPS_API_KEY,
+      },
+    });
     if (response.data.results && response.data.results.length > 0) {
-      return response.data.results[0]; // Return the first candidate
+      return response.data.results[0];
     }
     return null;
   } catch (error) {
@@ -91,11 +80,8 @@ app.use(express.json());
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || origin.startsWith("http://localhost:")) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
+      if (!origin || origin.startsWith("http://localhost:")) callback(null, true);
+      else callback(new Error("Not allowed by CORS"));
     },
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
@@ -109,7 +95,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Endpoint to compute the best meeting location.
 app.post("/compute-location", async (req, res) => {
   const { locations } = req.body;
   console.log("Received locations:", locations);
@@ -120,25 +105,20 @@ app.post("/compute-location", async (req, res) => {
   const addresses = locations.map((loc) => loc.address);
   console.log("Extracted addresses:", addresses);
 
-  // Compute the initial epicenter.
+  // Compute initial epicenter.
   const epicenter = await computeEpicenter(addresses);
-  if (!epicenter) {
-    return res.status(500).json({ error: "Unable to compute epicenter." });
-  }
+  if (!epicenter) return res.status(500).json({ error: "Unable to compute epicenter." });
   console.log("Calculated Epicenter:", epicenter);
 
-  // --- Grid Search ---
-  const delta = 0.005; // ~500-600m offset
+  // Grid search around the epicenter.
+  const delta = 0.005;
   const gridCandidates = [];
   for (let i = -1; i <= 1; i++) {
     for (let j = -1; j <= 1; j++) {
-      gridCandidates.push({
-        lat: epicenter.lat + i * delta,
-        lng: epicenter.lng + j * delta,
-      });
+      gridCandidates.push({ lat: epicenter.lat + i * delta, lng: epicenter.lng + j * delta });
     }
   }
-
+  
   const candidateResults = await Promise.all(
     gridCandidates.map(async (candidate) => {
       const candidateStr = `${candidate.lat},${candidate.lng}`;
@@ -149,20 +129,17 @@ app.post("/compute-location", async (req, res) => {
         })
       );
       const validTimes = travelTimes.filter((t) => t !== Infinity);
-      const averageTime =
-        validTimes.length > 0 ? validTimes.reduce((sum, t) => sum + t, 0) / validTimes.length : Infinity;
+      const averageTime = validTimes.length > 0 ? validTimes.reduce((sum, t) => sum + t, 0) / validTimes.length : Infinity;
       return { candidate, travelTimes, averageTime };
     })
   );
-
+  
   candidateResults.sort((a, b) => a.averageTime - b.averageTime);
   const bestCandidate = candidateResults[0];
-  if (!bestCandidate) {
-    return res.status(500).json({ error: "Unable to compute best meeting point." });
-  }
+  if (!bestCandidate) return res.status(500).json({ error: "Unable to compute best meeting point." });
   console.log("Best grid candidate:", bestCandidate.candidate, "Avg time (s):", bestCandidate.averageTime);
 
-  // Use a fixed venue search keyword.
+  // Fixed search keyword.
   const searchKeyword = "bar, café, restaurant";
   const venue = await lookupVenue(bestCandidate.candidate, searchKeyword);
   let finalVenue = null;
@@ -178,7 +155,7 @@ app.post("/compute-location", async (req, res) => {
       place_id: null,
     };
   }
-
+  
   const venueLocationStr = `${finalVenue.geometry.location.lat},${finalVenue.geometry.location.lng}`;
   const newTravelTimes = await Promise.all(
     locations.map(async (loc) => {
@@ -186,19 +163,19 @@ app.post("/compute-location", async (req, res) => {
       return time;
     })
   );
+  
   const validNewTimes = newTravelTimes.filter((t) => t !== Infinity);
-  const newAverageTime =
-    validNewTimes.length > 0 ? validNewTimes.reduce((sum, t) => sum + t, 0) / validNewTimes.length : Infinity;
-
+  const newAverageTime = validNewTimes.length > 0 ? validNewTimes.reduce((sum, t) => sum + t, 0) / validNewTimes.length : Infinity;
+  
   const result = {
     name: finalVenue.name,
     address: finalVenue.vicinity || finalVenue.formatted_address || "Address not available",
     location: finalVenue.geometry.location,
-    travelTimes: newTravelTimes, // in seconds for each starting address
-    averageTime: newAverageTime,  // in seconds
+    travelTimes: newTravelTimes,
+    averageTime: newAverageTime,
     placeId: finalVenue.place_id,
   };
-
+  
   console.log("Final meeting point:", result);
   res.json({ bestLocation: result });
 });

@@ -68,25 +68,18 @@ const App = () => {
 
   const handleCompute = async () => {
     try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL;
-      fetch(`${backendUrl}/compute-location`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+      const response = await fetch(`${backendUrl}/compute-location`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ locations: addresses }),
-      })
-      .then(/* handle response */)
-      .catch((error) => {
-        console.error("Error connecting to backend:", error);
       });
-  
       if (!response.ok) {
         const error = await response.json();
         console.error("Error from backend:", error);
         return;
       }
-  
       const data = await response.json();
-      // The server returns { bestLocation: { ... } }
       setBestLocations([data.bestLocation]);
     } catch (error) {
       console.error("Error connecting to backend:", error);
@@ -96,16 +89,13 @@ const App = () => {
   return (
     <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={["places"]}>
       <div style={{ display: "flex", height: "calc(100vh - 20px)", width: "calc(100vw - 20px)", gap: "20px", padding: "10px", boxSizing: "border-box", margin: "10px" }}>
-        {/* LEFT CONTAINER (Inputs and Details) */}
-        <div style={{ width: "50%", background: "#f8f9fa", padding: "20px", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)", display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box" }}>
-          {/* Header */}
+        {/* LEFT CONTAINER */}
+        <div style={{ width: "50%", background: "#f8f9fa", padding: "20px", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box" }}>
           <h1 style={{ fontSize: "28px", marginBottom: "20px", textAlign: "center", color: "#000", fontWeight: "bold" }}>Togather</h1>
-  
           {/* Rows Container */}
           <div style={{ flex: 1, overflowY: "auto", marginBottom: "20px" }}>
             {addresses.map((entry, index) => (
               <div key={index} style={{ display: "flex", alignItems: "center", gap: "50px", padding: "10px 0", borderBottom: "1px solid #ddd" }}>
-                {/* Address Input (50% of row) */}
                 <div style={{ flex: 1 }}>
                   <Autocomplete
                     onLoad={(autocomplete) => onLoad(autocomplete, index)}
@@ -128,8 +118,6 @@ const App = () => {
                     />
                   </Autocomplete>
                 </div>
-  
-                {/* Dropdown (for transport) */}
                 <div style={{ flex: 1 }}>
                   <select
                     value={entry.transport}
@@ -145,7 +133,6 @@ const App = () => {
               </div>
             ))}
           </div>
-  
           {/* Buttons Row */}
           <div style={{ display: "flex", gap: "50px" }}>
             <button
@@ -164,28 +151,13 @@ const App = () => {
               </button>
             )}
           </div>
-  
           {/* Meeting Point Details */}
           {bestLocations.length > 0 && (
-            <div
-              style={{
-                marginTop: "20px",
-                padding: "10px",
-                border: "1px solid #ccc",
-                borderRadius: "5px",
-                background: "#f0f0f0",
-                color: "#333",
-              }}
-            >
+            <div style={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc", borderRadius: "5px", background: "#f0f0f0", color: "#333" }}>
               <h2>Best Meeting Point</h2>
-              <p>
-                <strong>{bestLocations[0].name || "Meeting Point"}</strong>
-              </p>
+              <p><strong>{bestLocations[0].name || "Meeting Point"}</strong></p>
               <p>{bestLocations[0].address || "Address not available"}</p>
-              <p>
-                Average travel time:{" "}
-                {(bestLocations[0].averageTime / 60).toFixed(1)} min
-              </p>
+              <p>Average travel time: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
               <hr />
               <h3>Commute times:</h3>
               <ul>
@@ -202,7 +174,6 @@ const App = () => {
             </div>
           )}
         </div>
-  
         {/* RIGHT CONTAINER (Map) */}
         <div style={{ width: "50%", height: "100%" }}>
           <GoogleMap
@@ -214,19 +185,13 @@ const App = () => {
             {markers.map((position, index) => (
               <Marker key={index} position={position} />
             ))}
-  
-            {/* Meeting Point Marker */}
             {bestLocations.length > 0 && (
               <Marker
                 position={bestLocations[0].location}
-                icon={{
-                  url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                }}
+                icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
                 onClick={() => setMeetingInfoOpen(true)}
               />
             )}
-  
-            {/* InfoWindow for the meeting point */}
             {meetingInfoOpen && bestLocations.length > 0 && (
               <InfoWindow
                 position={bestLocations[0].location}
@@ -235,10 +200,7 @@ const App = () => {
                 <div style={{ background: "#f0f0f0", color: "#333", padding: "10px", borderRadius: "5px" }}>
                   <h3>{bestLocations[0].name || "Meeting Point"}</h3>
                   <p>{bestLocations[0].address || "Address not available"}</p>
-                  <p>
-                    Average travel time:{" "}
-                    {(bestLocations[0].averageTime / 60).toFixed(1)} min
-                  </p>
+                  <p>Average travel time: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
                 </div>
               </InfoWindow>
             )}
