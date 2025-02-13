@@ -76,12 +76,22 @@ const lookupVenue = async (location, keyword) => {
 };
 
 const app = express();
+const allowedOrigins = [
+  "http://localhost:3000",  // if you're testing locally
+  "http://localhost:5173",  // if you're using Vite's default port
+  "https://www.togather.fr"  // your live frontend domain
+];
 app.use(express.json());
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || origin.startsWith("http://localhost:")) callback(null, true);
-      else callback(new Error("Not allowed by CORS"));
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = "The CORS policy for this site does not allow access from the specified Origin.";
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
     },
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
