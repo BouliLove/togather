@@ -68,13 +68,16 @@ const App = () => {
 
   const handleCompute = async () => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+        const backendUrl = import.meta.env.VITE_BACKEND_URL;
       fetch(`${backendUrl}/compute-location`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locations: addresses, venueQuery }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locations: addresses }),
       })
-
+      .then(/* handle response */)
+      .catch((error) => {
+        console.error("Error connecting to backend:", error);
+      });
   
       if (!response.ok) {
         const error = await response.json();
