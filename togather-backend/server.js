@@ -9,7 +9,7 @@ const axios = require("axios");
 
 const app = express();
 
-// Use a very permissive CORS policy for testing
+// Use a permissive CORS policy for testing
 app.use(cors());
 app.options("*", cors());
 
@@ -19,9 +19,10 @@ app.use(express.json());
 const geocodeAddress = async (address) => {
   try {
     console.log("Geocoding address:", address);
-    const response = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
-      params: { address, key: GOOGLE_MAPS_API_KEY },
-    });
+    const response = await axios.get(
+      "https://maps.googleapis.com/maps/api/geocode/json",
+      { params: { address, key: GOOGLE_MAPS_API_KEY } }
+    );
     console.log("Geocode response for address:", address, response.data);
     const location = response.data.results[0]?.geometry?.location;
     return location ? { lat: location.lat, lng: location.lng } : null;
@@ -47,14 +48,10 @@ const computeEpicenter = async (addresses) => {
 // For one origin to a given destination using a specified transport mode.
 const getTravelTimeForOrigin = async (origin, destination, mode) => {
   try {
-    const response = await axios.get("https://maps.googleapis.com/maps/api/distancematrix/json", {
-      params: {
-        origins: origin,
-        destinations: destination,
-        mode,
-        key: GOOGLE_MAPS_API_KEY,
-      },
-    });
+    const response = await axios.get(
+      "https://maps.googleapis.com/maps/api/distancematrix/json",
+      { params: { origins: origin, destinations: destination, mode, key: GOOGLE_MAPS_API_KEY } }
+    );
     const duration = response.data.rows[0].elements[0].duration?.value;
     return duration || Infinity;
   } catch (error) {
@@ -66,14 +63,17 @@ const getTravelTimeForOrigin = async (origin, destination, mode) => {
 // Lookup a nearby venue using a fixed search keyword.
 const lookupVenue = async (location, keyword) => {
   try {
-    const response = await axios.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json", {
-      params: {
-        location: `${location.lat},${location.lng}`,
-        radius: 1500,
-        keyword, // fixed search term
-        key: GOOGLE_MAPS_API_KEY,
-      },
-    });
+    const response = await axios.get(
+      "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+      {
+        params: {
+          location: `${location.lat},${location.lng}`,
+          radius: 1500,
+          keyword, // fixed search term
+          key: GOOGLE_MAPS_API_KEY,
+        },
+      }
+    );
     if (response.data.results && response.data.results.length > 0) {
       return response.data.results[0];
     }
@@ -169,6 +169,8 @@ app.post("/compute-location", async (req, res) => {
   res.json({ bestLocation: result });
 });
 
-app.listen(5001, () => {
-  console.log("Server running on http://localhost:5001");
+// Listen on the port provided by Heroku, or fallback to 5001 for local development.
+const PORT = process.env.PORT || 5001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
