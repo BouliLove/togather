@@ -1,3 +1,4 @@
+// Load environment variables from .env
 require("dotenv").config({ path: "./.env" });
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 console.log("Loaded Google Maps API Key:", GOOGLE_MAPS_API_KEY);
@@ -5,6 +6,14 @@ console.log("Loaded Google Maps API Key:", GOOGLE_MAPS_API_KEY);
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+
+const app = express();
+
+// Use a very permissive CORS policy for testing
+app.use(cors());
+app.options("*", cors());
+
+app.use(express.json());
 
 // Geocode an address and return its latitude/longitude.
 const geocodeAddress = async (address) => {
@@ -75,47 +84,31 @@ const lookupVenue = async (location, keyword) => {
   }
 };
 
-const app = express();
-const allowedOrigins = [
-  "http://localhost:3000",  // if you're testing locally
-  "http://localhost:5173",  // if you're using Vite's default port
-  "https://www.togather.fr"  // your live frontend domain
-];
-app.use(express.json());
-app.use(cors());
-app.options("*", cors());
-
-const PORT = 5001;
-
-app.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.url}`);
-  next();
-});
-
 app.post("/compute-location", async (req, res) => {
   const { locations } = req.body;
   console.log("Received locations:", locations);
   if (locations.length < 2) {
     return res.status(400).json({ error: "At least two locations are required." });
   }
-  
   const addresses = locations.map((loc) => loc.address);
   console.log("Extracted addresses:", addresses);
 
-  // Compute initial epicenter.
+  // Compute the initial epicenter.
   const epicenter = await computeEpicenter(addresses);
   if (!epicenter) return res.status(500).json({ error: "Unable to compute epicenter." });
   console.log("Calculated Epicenter:", epicenter);
 
   // Grid search around the epicenter.
-  const delta = 0.005;
+  const delta = 0.005; // Approximately 500-600m offset.
   const gridCandidates = [];
   for (let i = -1; i <= 1; i++) {
     for (let j = -1; j <= 1; j++) {
-      gridCandidates.push({ lat: epicenter.lat + i * delta, lng: epicenter.lng + j * delta });
+      gridCandidates.push({
+        lat: epicenter.lat + i * delta,
+        lng: epicenter.lng + j * delta,
+      });
     }
   }
-  
   const candidateResults = await Promise.all(
     gridCandidates.map(async (candidate) => {
       const candidateStr = `${candidate.lat},${candidate.lng}`;
@@ -126,11 +119,11 @@ app.post("/compute-location", async (req, res) => {
         })
       );
       const validTimes = travelTimes.filter((t) => t !== Infinity);
-      const averageTime = validTimes.length > 0 ? validTimes.reduce((sum, t) => sum + t, 0) / validTimes.length : Infinity;
+      const averageTime =
+        validTimes.length > 0 ? validTimes.reduce((sum, t) => sum + t, 0) / validTimes.length : Infinity;
       return { candidate, travelTimes, averageTime };
     })
   );
-  
   candidateResults.sort((a, b) => a.averageTime - b.averageTime);
   const bestCandidate = candidateResults[0];
   if (!bestCandidate) return res.status(500).json({ error: "Unable to compute best meeting point." });
@@ -152,7 +145,6 @@ app.post("/compute-location", async (req, res) => {
       place_id: null,
     };
   }
-  
   const venueLocationStr = `${finalVenue.geometry.location.lat},${finalVenue.geometry.location.lng}`;
   const newTravelTimes = await Promise.all(
     locations.map(async (loc) => {
@@ -160,10 +152,10 @@ app.post("/compute-location", async (req, res) => {
       return time;
     })
   );
-  
   const validNewTimes = newTravelTimes.filter((t) => t !== Infinity);
-  const newAverageTime = validNewTimes.length > 0 ? validNewTimes.reduce((sum, t) => sum + t, 0) / validNewTimes.length : Infinity;
-  
+  const newAverageTime =
+    validNewTimes.length > 0 ? validNewTimes.reduce((sum, t) => sum + t, 0) / validNewTimes.length : Infinity;
+
   const result = {
     name: finalVenue.name,
     address: finalVenue.vicinity || finalVenue.formatted_address || "Address not available",
@@ -172,11 +164,11 @@ app.post("/compute-location", async (req, res) => {
     averageTime: newAverageTime,
     placeId: finalVenue.place_id,
   };
-  
+
   console.log("Final meeting point:", result);
   res.json({ bestLocation: result });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(5001, () => {
+  console.log("Server running on http://localhost:5001");
 });
