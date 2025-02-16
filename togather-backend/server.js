@@ -1,4 +1,4 @@
-// Load environment variables from .env
+// Load environment variables
 require("dotenv").config({ path: "./.env" });
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 console.log("Loaded Google Maps API Key:", GOOGLE_MAPS_API_KEY);
@@ -19,10 +19,9 @@ app.use(express.json());
 const geocodeAddress = async (address) => {
   try {
     console.log("Geocoding address:", address);
-    const response = await axios.get(
-      "https://maps.googleapis.com/maps/api/geocode/json",
-      { params: { address, key: GOOGLE_MAPS_API_KEY } }
-    );
+    const response = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
+      params: { address, key: GOOGLE_MAPS_API_KEY },
+    });
     console.log("Geocode response for address:", address, response.data);
     const location = response.data.results[0]?.geometry?.location;
     return location ? { lat: location.lat, lng: location.lng } : null;
@@ -48,10 +47,9 @@ const computeEpicenter = async (addresses) => {
 // For one origin to a given destination using a specified transport mode.
 const getTravelTimeForOrigin = async (origin, destination, mode) => {
   try {
-    const response = await axios.get(
-      "https://maps.googleapis.com/maps/api/distancematrix/json",
-      { params: { origins: origin, destinations: destination, mode, key: GOOGLE_MAPS_API_KEY } }
-    );
+    const response = await axios.get("https://maps.googleapis.com/maps/api/distancematrix/json", {
+      params: { origins: origin, destinations: destination, mode, key: GOOGLE_MAPS_API_KEY },
+    });
     const duration = response.data.rows[0].elements[0].duration?.value;
     return duration || Infinity;
   } catch (error) {
@@ -63,17 +61,14 @@ const getTravelTimeForOrigin = async (origin, destination, mode) => {
 // Lookup a nearby venue using a fixed search keyword.
 const lookupVenue = async (location, keyword) => {
   try {
-    const response = await axios.get(
-      "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
-      {
-        params: {
-          location: `${location.lat},${location.lng}`,
-          radius: 1500,
-          keyword, // fixed search term
-          key: GOOGLE_MAPS_API_KEY,
-        },
-      }
-    );
+    const response = await axios.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json", {
+      params: {
+        location: `${location.lat},${location.lng}`,
+        radius: 1500,
+        keyword,
+        key: GOOGLE_MAPS_API_KEY,
+      },
+    });
     if (response.data.results && response.data.results.length > 0) {
       return response.data.results[0];
     }
@@ -99,28 +94,21 @@ app.post("/compute-location", async (req, res) => {
   console.log("Calculated Epicenter:", epicenter);
 
   // Grid search around the epicenter.
-  const delta = 0.005; // Approximately 500-600m offset.
+  const delta = 0.005;
   const gridCandidates = [];
   for (let i = -1; i <= 1; i++) {
     for (let j = -1; j <= 1; j++) {
-      gridCandidates.push({
-        lat: epicenter.lat + i * delta,
-        lng: epicenter.lng + j * delta,
-      });
+      gridCandidates.push({ lat: epicenter.lat + i * delta, lng: epicenter.lng + j * delta });
     }
   }
   const candidateResults = await Promise.all(
     gridCandidates.map(async (candidate) => {
       const candidateStr = `${candidate.lat},${candidate.lng}`;
       const travelTimes = await Promise.all(
-        locations.map(async (loc) => {
-          const time = await getTravelTimeForOrigin(loc.address, candidateStr, loc.transport);
-          return time;
-        })
+        locations.map(async (loc) => await getTravelTimeForOrigin(loc.address, candidateStr, loc.transport))
       );
       const validTimes = travelTimes.filter((t) => t !== Infinity);
-      const averageTime =
-        validTimes.length > 0 ? validTimes.reduce((sum, t) => sum + t, 0) / validTimes.length : Infinity;
+      const averageTime = validTimes.length > 0 ? validTimes.reduce((sum, t) => sum + t, 0) / validTimes.length : Infinity;
       return { candidate, travelTimes, averageTime };
     })
   );
@@ -147,14 +135,10 @@ app.post("/compute-location", async (req, res) => {
   }
   const venueLocationStr = `${finalVenue.geometry.location.lat},${finalVenue.geometry.location.lng}`;
   const newTravelTimes = await Promise.all(
-    locations.map(async (loc) => {
-      const time = await getTravelTimeForOrigin(loc.address, venueLocationStr, loc.transport);
-      return time;
-    })
+    locations.map(async (loc) => await getTravelTimeForOrigin(loc.address, venueLocationStr, loc.transport))
   );
   const validNewTimes = newTravelTimes.filter((t) => t !== Infinity);
-  const newAverageTime =
-    validNewTimes.length > 0 ? validNewTimes.reduce((sum, t) => sum + t, 0) / validNewTimes.length : Infinity;
+  const newAverageTime = validNewTimes.length > 0 ? validNewTimes.reduce((sum, t) => sum + t, 0) / validNewTimes.length : Infinity;
 
   const result = {
     name: finalVenue.name,
@@ -169,7 +153,7 @@ app.post("/compute-location", async (req, res) => {
   res.json({ bestLocation: result });
 });
 
-// Listen on the port provided by Heroku, or fallback to 5001 for local development.
+// Listen on the port provided by Heroku or fallback to 5001 locally.
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
