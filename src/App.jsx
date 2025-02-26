@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { LoadScript, Autocomplete, GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
 import "./App.css";
 
@@ -30,12 +30,25 @@ const App = () => {
   const [meetingInfoOpen, setMeetingInfoOpen] = useState(false);
   const [viewMode, setViewMode] = useState("form"); // "form" or "map"
   const [mapExpanded, setMapExpanded] = useState(false); // For mini-map toggle on mobile
+  const [venueType, setVenueType] = useState(""); // New state for venue type
+  const [isLoading, setIsLoading] = useState(false); // Loading state
+  const [error, setError] = useState(null); // Error state
   const autocompleteRefs = useRef([]);
 
   const handleAddAddress = () => {
     if (addresses.length < 10) {
       setAddresses([...addresses, { address: "", transport: "transit" }]);
     }
+  };
+
+  const handleRemoveAddress = (index) => {
+    const newAddresses = [...addresses];
+    newAddresses.splice(index, 1);
+    setAddresses(newAddresses);
+    
+    const newMarkers = [...markers];
+    newMarkers.splice(index, 1);
+    setMarkers(newMarkers);
   };
 
   const handleAddressChange = (index, value) => {
@@ -50,6 +63,10 @@ const App = () => {
     setAddresses(newAddresses);
   };
 
+  const handleVenueTypeChange = (e) => {
+    setVenueType(e.target.value);
+  };
+
   const onLoad = (autocomplete, index) => {
     autocompleteRefs.current[index] = autocomplete;
   };
@@ -57,7 +74,7 @@ const App = () => {
   const onPlaceChanged = (index) => {
     if (autocompleteRefs.current[index]) {
       const place = autocompleteRefs.current[index].getPlace();
-      if (place.geometry) {
+      if (place && place.geometry) {
         const { lat, lng } = place.geometry.location;
         handleAddressChange(index, place.formatted_address || "");
         setMarkers((prevMarkers) => {
@@ -70,24 +87,44 @@ const App = () => {
   };
 
   const handleCompute = async () => {
+    // Validate we have at least 2 addresses
+    const validAddresses = addresses.filter(a => a.address.trim() !== "");
+    if (validAddresses.length < 2) {
+      setError("Please enter at least two valid addresses");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL;
       const response = await fetch(`${backendUrl}/compute-location`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locations: addresses }),
+        body: JSON.stringify({ 
+          locations: addresses,
+          venueType: venueType.trim() // Send venue type to backend
+        }),
       });
+      
       if (!response.ok) {
-        const error = await response.json();
-        console.error("Error from backend:", error);
+        const errorData = await response.json();
+        console.error("Error from backend:", errorData);
+        setError(errorData.error || "Failed to find meeting point");
         return;
       }
+      
       const data = await response.json();
       setBestLocations([data.bestLocation]);
+      
       // Switch to map view when result is ready on mobile
       setViewMode("map");
     } catch (error) {
       console.error("Error connecting to backend:", error);
+      setError("Connection error. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -99,6 +136,13 @@ const App = () => {
   const toggleMapExpanded = () => {
     setMapExpanded(!mapExpanded);
   };
+
+  // Initialize with at least one empty address if none exists
+  useEffect(() => {
+    if (addresses.length === 0) {
+      handleAddAddress();
+    }
+  }, []);
 
   return (
     <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={["places"]}>
@@ -112,9 +156,65 @@ const App = () => {
           )}
         </header>
 
-        <div className={`app-container ${viewMode}`}>
+        <div className={`app-container ${viewMode} ${mapExpanded ? 'map-expanded' : ''}`}>
+          {/* Mini Map Preview (mobile only) */}
+          <div className="mini-map-container">
+            <div className="mini-map-wrapper">
+              <GoogleMap
+                mapContainerClassName="mini-google-map"
+                center={markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
+                zoom={markers.length > 0 ? 11 : 10}
+                options={{ styles: MAP_STYLES, disableDefaultUI: true, zoomControl: false }}
+              >
+                {markers.map((position, index) => (
+                  <Marker key={index} position={position} />
+                ))}
+                {bestLocations.length > 0 && (
+                  <Marker
+                    position={bestLocations[0].location}
+                    icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
+                  />
+                )}
+              </GoogleMap>
+              <button 
+                className="expand-map-btn" 
+                onClick={toggleMapExpanded}
+                aria-label={mapExpanded ? "Minimize map" : "Expand map"}
+              >
+                {mapExpanded ? "↓" : "↑"}
+              </button>
+            </div>
+          </div>
+          
           {/* FORM CONTAINER */}
           <div className="form-container">
+            {/* Venue Type Input */}
+            <div className="venue-type-container">
+              <label htmlFor="venue-type" className="venue-type-label">
+                What kind of place to meet at?
+              </label>
+              <input
+                id="venue-type"
+                type="text" 
+                placeholder="e.g., restaurant, cinema, cafe, park..." 
+                value={venueType}
+                onChange={handleVenueTypeChange}
+                className="venue-type-input"
+              />
+            </div>
+            
+            {/* Error message if any */}
+            {error && (
+              <div className="error-message">
+                {error}
+              </div>
+            )}
+            
+            {/* Starting Points Heading */}
+            <div className="section-heading">
+              <h2>Starting Points</h2>
+            </div>
+            
             {/* Rows Container */}
             <div className="address-rows">
               {addresses.map((entry, index) => (
@@ -151,9 +251,18 @@ const App = () => {
                         <option value="driving">Car</option>
                         <option value="walking">Walking</option>
                         <option value="bicycling">Bicycle</option>
-                        <option value="transit">Public Transport</option>
+                        <option value="transit">Transit</option>
                       </select>
                     </div>
+                    {addresses.length > 1 && (
+                      <button 
+                        onClick={() => handleRemoveAddress(index)} 
+                        className="remove-address-btn"
+                        aria-label="Remove address"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -172,8 +281,9 @@ const App = () => {
                 <button
                   onClick={handleCompute}
                   className="compute-btn"
+                  disabled={isLoading}
                 >
-                  Find best meeting point
+                  {isLoading ? "Finding..." : "Find best meeting point"}
                 </button>
               )}
             </div>
@@ -189,12 +299,26 @@ const App = () => {
                 <div className="venue-info">
                   <h3>{bestLocations[0].name || "Meeting Point"}</h3>
                   <p className="venue-address">{bestLocations[0].address || "Address not available"}</p>
+                  {bestLocations[0].rating && (
+                    <div className="venue-rating">
+                      <span className="rating-stars">
+                        {"★".repeat(Math.round(bestLocations[0].rating))}
+                        {"☆".repeat(5 - Math.round(bestLocations[0].rating))}
+                      </span>
+                      <span className="rating-value">{bestLocations[0].rating}</span>
+                      {bestLocations[0].userRatingsTotal && (
+                        <span className="rating-count">({bestLocations[0].userRatingsTotal})</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="commute-details">
                   <h4>Commute times:</h4>
                   <ul className="commute-times-list">
                     {addresses.map((entry, index) => {
+                      if (!entry.address) return null;
+                      
                       // Format address for display
                       let displayAddress = entry.address;
                       const commaIndex = displayAddress.indexOf(',');
@@ -222,6 +346,20 @@ const App = () => {
                     })}
                   </ul>
                 </div>
+                
+                {bestLocations[0].alternativeVenues && bestLocations[0].alternativeVenues.length > 0 && (
+                  <div className="alternative-venues">
+                    <h4>Alternative venues nearby:</h4>
+                    <ul className="alternative-venues-list">
+                      {bestLocations[0].alternativeVenues.map((venue, index) => (
+                        <li key={index} className="alternative-venue-item">
+                          <span className="venue-name">{venue.name}</span>
+                          <span className="venue-time">{(venue.averageTime / 60).toFixed(1)} min</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -230,7 +368,8 @@ const App = () => {
           <div className="map-container">
             <GoogleMap
               mapContainerClassName="google-map"
-              center={MAP_CENTER}
+              center={bestLocations.length > 0 ? bestLocations[0].location : 
+                      markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
               zoom={12}
               options={{ styles: MAP_STYLES, disableDefaultUI: true, zoomControl: true }}
             >
