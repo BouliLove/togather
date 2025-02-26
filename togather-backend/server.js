@@ -236,15 +236,14 @@ app.post("/compute-location", async (req, res) => {
     }
     console.log("Calculated Weighted Epicenter:", epicenter);
     
-    // 2. Generate a more expansive grid for search (larger area and finer grid)
-    //    This helps discover more potential meeting points, especially in urban areas
+    // 2. Generate a grid for search around the epicenter
     const gridSearchResults = await performGridSearch(epicenter, locations);
     if (!gridSearchResults.bestCandidate) {
       return res.status(500).json({ error: "Unable to find suitable meeting points." });
     }
     
     // 3. Search for venues around the best candidate point
-    // Prepare venue search options
+    // Prepare venue search options - use user-provided venue type or default
     const searchOptions = {
       keyword: venueType || "restaurant,cafe,bar", // Use user input or default
       radius: 600,             // Search in a 600m radius (about 7-8 minute walk)
@@ -392,7 +391,7 @@ app.post("/compute-location", async (req, res) => {
 
 // Perform a grid search around the epicenter to find the point with the minimum average travel time
 async function performGridSearch(epicenter, locations) {
-  // Create a more detailed grid with 25 points (5x5 grid) with variable spacing
+  // Create a grid with 25 points (5x5 grid) with variable spacing
   const gridCandidates = [];
   const deltas = [-0.008, -0.004, 0, 0.004, 0.008]; // Wider range with more samples
   

@@ -34,11 +34,11 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   background-color: #007bff;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  height: 60px;
+  height: 56px;
   width: 100%;
 }
 
@@ -52,29 +52,80 @@ body {
   color: #007bff;
   border: none;
   border-radius: 4px;
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.8rem;
   font-weight: bold;
   cursor: pointer;
+  font-size: 0.85rem;
 }
 
 /* Main container */
 .app-container {
   flex: 1;
   width: 100%;
-  height: calc(100% - 60px); /* Subtract header height */
+  height: calc(100% - 56px); /* Subtract header height */
   position: relative;
   overflow: hidden;
+}
+
+/* Venue type input container */
+.venue-type-container {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.venue-type-label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.venue-type-input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: white;
+}
+
+.venue-type-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Error message */
+.error-message {
+  padding: 0.6rem;
+  margin-bottom: 1rem;
+  background-color: #ffebee;
+  color: #d32f2f;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* Section heading */
+.section-heading {
+  margin-bottom: 0.75rem;
+}
+
+.section-heading h2 {
+  font-size: 1.1rem;
+  color: #333;
+  font-weight: 600;
 }
 
 /* Mini map container for mobile preview */
 .mini-map-container {
   width: 100%;
-  height: 150px;  /* Fixed height for mini map */
+  height: 120px;  /* Reduced height for mini map */
   position: relative;
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   transition: height 0.3s ease;
 }
 
@@ -93,14 +144,14 @@ body {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background-color: white;
   color: #007bff;
   border: none;
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  font-size: 1.2rem;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,49 +161,24 @@ body {
 
 /* Map expanded state */
 .app-container.map-expanded .mini-map-container {
-  height: 50vh;
+  height: 40vh;
 }
 
 /* Form container */
 .form-container {
   width: 100%;
-  height: calc(100% - 150px); /* Full height minus mini map */
+  height: calc(100% - 120px); /* Adjusted for reduced mini map */
   position: relative;
-  padding: 1rem;
+  padding: 0.75rem;
   overflow-y: auto;
   background-color: white;
   z-index: 10;
   transition: transform 0.3s ease;
 }
 
-/* Map container (full screen) */
-.map-container {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 5;
-}
-
-.google-map {
-  width: 100%;
-  height: 100%;
-}
-
-/* View mode switching */
-.app-container.map .form-container {
-  transform: translateX(-100%);
-}
-
 /* When map is expanded, reduce form space */
 .app-container.map-expanded .form-container {
-  height: calc(100% - 50vh);
-}
-
-.app-container.form .map-container {
-  /* Map is always present but behind the form in form view */
-  z-index: 5;
+  height: calc(100% - 40vh);
 }
 
 /* Address rows */
@@ -172,7 +198,7 @@ body {
 
 .address-input-group {
   display: flex;
-  flex-direction: row;
+  align-items: center;
   width: 100%;
   gap: 8px;
 }
@@ -192,6 +218,22 @@ body {
   font-size: 0.9rem;
   border-radius: 4px;
   border: 1px solid #ccc;
+}
+
+.remove-address-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
 }
 
 /* Action buttons */
@@ -224,9 +266,29 @@ body {
   color: white;
 }
 
-.add-address-btn:disabled {
+.add-address-btn:disabled, .compute-btn:disabled {
   background-color: #adb5bd;
   cursor: not-allowed;
+}
+
+/* Map container */
+.map-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+}
+
+.google-map {
+  width: 100%;
+  height: 100%;
+}
+
+/* View mode switching */
+.app-container.map .form-container {
+  transform: translateX(-100%);
 }
 
 /* Meeting details */
@@ -281,6 +343,28 @@ body {
   font-size: 0.9rem;
 }
 
+.venue-rating {
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.rating-stars {
+  color: #ff9800;
+  letter-spacing: -1px;
+}
+
+.rating-value {
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.rating-count {
+  color: #777;
+  font-size: 0.8rem;
+}
+
 .commute-details {
   padding: 0.75rem;
 }
@@ -333,6 +417,41 @@ body {
   font-size: 0.8rem;
   color: #666;
   margin-left: 0.3rem;
+}
+
+/* Alternative venues */
+.alternative-venues {
+  padding: 0.75rem;
+  border-top: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+
+.alternative-venues h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.alternative-venues-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.alternative-venue-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+.venue-name {
+  color: #333;
+}
+
+.venue-time {
+  color: #555;
+  font-weight: 500;
 }
 
 /* Info window styles */
@@ -401,10 +520,14 @@ body {
   }
   
   .meeting-details {
-    padding: 1rem;
+    padding: 0;
   }
   
-  .meeting-details h2 {
+  .meeting-header h2 {
     font-size: 1.25rem;
+  }
+  
+  .action-buttons {
+    flex-direction: row;
   }
 }
