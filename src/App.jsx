@@ -1,25 +1,111 @@
 import React, { useState, useRef, useEffect } from "react";
 import { LoadScript } from "@react-google-maps/api";
 import MapDisplay from "./components/MapDisplay";
-import AddressInputs from "./components/AddressInputs";
-import { MapPin, X, Bike, Car, Train, Navigation, Plus, Loader, Share2, ArrowUpDown, Search, ChevronUp, ChevronDown } from 'lucide-react';
+import { MapPin, X, Bike, Car, Train, Walk, Plus, Loader, Share2, ArrowUpDown, Search, ChevronUp, ChevronDown } from 'lucide-react';
 
 // Constants
 const MAP_CENTER = { lat: 48.8566, lng: 2.3522 }; // Paris
 const MAP_STYLES = [
-  { elementType: "geometry", stylers: [{ color: "#212121" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#373737" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d47a1" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#ffffff" }] },
+  {
+    "featureType": "all",
+    "elementType": "geometry.fill",
+    "stylers": [
+      {
+        "weight": "2.00"
+      }
+    ]
+  },
+  {
+    "featureType": "all",
+    "elementType": "geometry.stroke",
+    "stylers": [
+      {
+        "color": "#9c9c9c"
+      }
+    ]
+  },
+  {
+    "featureType": "all",
+    "elementType": "labels.text",
+    "stylers": [
+      {
+        "visibility": "on"
+      }
+    ]
+  },
+  {
+    "featureType": "landscape",
+    "elementType": "all",
+    "stylers": [
+      {
+        "color": "#f2f2f2"
+      }
+    ]
+  },
+  {
+    "featureType": "landscape",
+    "elementType": "geometry.fill",
+    "stylers": [
+      {
+        "color": "#ffffff"
+      }
+    ]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "all",
+    "stylers": [
+      {
+        "visibility": "off"
+      }
+    ]
+  },
+  {
+    "featureType": "road",
+    "elementType": "all",
+    "stylers": [
+      {
+        "saturation": -100
+      },
+      {
+        "lightness": 45
+      }
+    ]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry.fill",
+    "stylers": [
+      {
+        "color": "#eeeeee"
+      }
+    ]
+  },
+  {
+    "featureType": "road",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#7b7b7b"
+      }
+    ]
+  },
+  {
+    "featureType": "water",
+    "elementType": "all",
+    "stylers": [
+      {
+        "color": "#46bcec"
+      },
+      {
+        "visibility": "on"
+      }
+    ]
+  }
 ];
 
 const TravelModes = {
-  WALKING: { icon: <Navigation size={20} />, label: "Walking" },
+  WALKING: { icon: <Walk size={20} />, label: "Walking" },
   BICYCLING: { icon: <Bike size={20} />, label: "Bicycling" },
   TRANSIT: { icon: <Train size={20} />, label: "Transit" },
   DRIVING: { icon: <Car size={20} />, label: "Driving" }
@@ -55,12 +141,12 @@ const App = () => {
 
   // Handle adding a new address row
   const handleAddAddress = () => {
-    if (locations.length < 4) {
+    if (locations.length < 10) {
       setLocations([...locations, { 
         id: Date.now(), 
         address: '', 
         transport: 'WALKING',
-        color: COLORS[locations.length]
+        color: COLORS[locations.length % COLORS.length]
       }]);
     }
   };
@@ -246,7 +332,7 @@ const App = () => {
   if (!googleMapsApiKey) {
     return (
       <div className="w-full h-screen bg-gray-100 flex flex-col">
-        <header className="bg-blue-500 text-white py-4 px-6 flex justify-center items-center z-10">
+        <header className="bg-blue-600 text-white py-4 px-6 flex justify-center items-center z-10">
           <h1 className="text-2xl font-bold">Togather</h1>
         </header>
         <div className="p-8 mx-auto max-w-xl text-center">
@@ -258,14 +344,14 @@ const App = () => {
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-gray-100 flex flex-col">
+    <div className="relative h-screen w-full overflow-hidden bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-blue-500 text-white py-4 px-6 flex justify-between items-center z-10">
+      <header className="bg-blue-600 text-white py-4 px-6 flex justify-between items-center z-10 shadow-md">
         <h1 className="text-2xl font-bold">Togather</h1>
         {(markers.length > 0 || bestLocations.length > 0) && (
           <button 
             onClick={toggleView} 
-            className="bg-white text-blue-500 px-4 py-2 rounded-md font-medium"
+            className="bg-white text-blue-600 px-4 py-2 rounded-md font-medium shadow-sm hover:bg-blue-50 transition-colors"
           >
             {viewMode === "form" ? "View Map" : "Back to Form"}
           </button>
@@ -279,14 +365,17 @@ const App = () => {
         onLoad={handleMapsLoad}
         onError={handleMapsError}
         loadingElement={
-          <div className="h-full flex items-center justify-center">
-            <p>Loading Google Maps...</p>
+          <div className="h-full flex items-center justify-center bg-blue-50">
+            <div className="flex flex-col items-center">
+              <Loader className="animate-spin text-blue-600 mb-4" size={40} />
+              <p className="text-blue-700 font-medium">Loading Google Maps...</p>
+            </div>
           </div>
         }
       >
         <div className={`relative ${isMapExpanded ? 'h-5/6' : 'h-3/5'} w-full transition-all duration-300`}>
-          {/* Mini Map */}
-          <div className="w-full h-full bg-gray-800 relative overflow-hidden">
+          {/* Map */}
+          <div className="w-full h-full bg-blue-50 relative overflow-hidden">
             {mapsLoaded && (
               <MapDisplay
                 center={markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
@@ -295,15 +384,15 @@ const App = () => {
                 selectedLocation={bestLocations.length > 0 ? bestLocations[0] : null}
                 mapStyles={MAP_STYLES}
                 className="w-full h-full object-cover"
-                disableDefaultUI={true}
-                zoomControl={false}
+                disableDefaultUI={false}
+                zoomControl={true}
               />
             )}
             
             {/* Map control buttons */}
             <button 
               onClick={toggleMapExpanded}
-              className="absolute top-3 right-3 bg-white p-2 rounded-md shadow-md z-20"
+              className="absolute top-4 right-4 bg-white p-2 rounded-full shadow-md z-20 hover:bg-gray-100 transition-colors"
             >
               {isMapExpanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
             </button>
@@ -313,48 +402,51 @@ const App = () => {
         {/* Bottom Sheet */}
         <div 
           ref={bottomSheetRef}
-          className={`absolute bottom-0 w-full bg-gray-900 rounded-t-xl shadow-lg transform transition-all duration-300 ease-in-out overflow-hidden z-30 ${getBottomSheetStyle()}`}
+          className={`absolute bottom-0 w-full bg-white rounded-t-xl shadow-lg transform transition-all duration-300 ease-in-out overflow-hidden z-30 ${getBottomSheetStyle()}`}
         >
           {/* Handle for dragging */}
           <div 
             className="w-full flex justify-center pt-2 pb-4 cursor-pointer"
             onClick={toggleBottomSheet}
           >
-            <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
+            <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
           </div>
 
-          <div className="px-4 pb-20 overflow-y-auto max-h-full">
+          <div className="px-6 pb-20 overflow-y-auto max-h-full">
             {/* Venue Type Input */}
-            <div className="mb-4">
-              <label htmlFor="venue-type" className="text-white text-sm font-medium mb-1 block">
+            <div className="mb-6">
+              <label htmlFor="venue-type" className="text-gray-700 text-sm font-medium mb-2 block">
                 What kind of place to meet at?
               </label>
-              <input
-                id="venue-type"
-                type="text" 
-                placeholder="e.g., restaurant, cinema, cafe, park..." 
-                value={venueType}
-                onChange={handleVenueTypeChange}
-                className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="relative">
+                <input
+                  id="venue-type"
+                  type="text" 
+                  placeholder="e.g., restaurant, cinema, cafe, park..." 
+                  value={venueType}
+                  onChange={handleVenueTypeChange}
+                  className="w-full bg-gray-100 text-gray-800 px-4 py-3 pl-11 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white border border-gray-200"
+                />
+                <MapPin className="absolute left-3 top-3.5 text-blue-500" size={20} />
+              </div>
             </div>
             
             {/* Error message if any */}
             {(error || mapsLoadError) && (
-              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+              <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
                 {error || mapsLoadError}
               </div>
             )}
             
             {/* Starting Points Heading */}
-            <h2 className="text-white text-xl font-bold mb-4">Starting Points</h2>
+            <h2 className="text-gray-800 text-xl font-bold mb-4">Starting Points</h2>
             
             {/* Address inputs */}
-            <div className="space-y-3 mb-4">
+            <div className="space-y-4 mb-6">
               {locations.map((location, index) => (
                 <div key={location.id} className="relative">
                   <div 
-                    className="flex items-center bg-gray-800 rounded-lg overflow-hidden border-l-4 shadow-md"
+                    className="flex items-center bg-gray-100 rounded-lg overflow-hidden border-l-4 shadow-sm hover:shadow transition-shadow"
                     style={{ borderLeftColor: location.color }}
                   >
                     <div className="relative flex-1">
@@ -366,24 +458,26 @@ const App = () => {
                           simulateAddressSuggestions(e.target.value, index);
                         }}
                         onFocus={() => setFocusedInput(index)}
-                        className="w-full bg-gray-800 text-white px-4 py-3 focus:outline-none"
+                        className="w-full bg-gray-100 text-gray-800 px-4 py-3 pl-11 focus:outline-none focus:bg-white"
                         placeholder="Enter address..."
                         ref={index === focusedInput ? addressInputRef : null}
                       />
-                      <Search className="absolute top-3 left-2 text-gray-400" size={18} />
+                      <Search className="absolute top-3.5 left-3 text-blue-500" size={18} />
                     </div>
                     
                     <button
-                      className="p-3 text-white bg-gray-700 hover:bg-gray-600"
+                      className="p-3 text-gray-600 hover:bg-gray-200 transition-colors"
                       onClick={() => handleToggleTravelMode(location.id)}
+                      title={TravelModes[location.transport]?.label || "Travel mode"}
                     >
                       {TravelModes[location.transport]?.icon || <Car size={20} />}
                     </button>
                     
                     {locations.length > 2 && (
                       <button
-                        className="p-3 text-white bg-red-500 hover:bg-red-600"
+                        className="p-3 text-red-500 hover:bg-red-50 transition-colors"
                         onClick={() => handleRemoveAddress(location.id)}
+                        title="Remove location"
                       >
                         <X size={20} />
                       </button>
@@ -394,11 +488,11 @@ const App = () => {
                   {suggestions && 
                    suggestions.locationIndex === index && 
                    suggestions.items.length > 0 && (
-                    <div className="absolute z-20 mt-1 w-full bg-white rounded-md shadow-lg">
+                    <div className="absolute z-20 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200">
                       {suggestions.items.map((item, idx) => (
                         <div
                           key={idx}
-                          className="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer"
+                          className="px-4 py-2 text-gray-700 hover:bg-blue-50 cursor-pointer"
                           onClick={() => selectSuggestion(item, index)}
                         >
                           {item}
@@ -410,8 +504,9 @@ const App = () => {
                   {/* Swap button */}
                   {index < locations.length - 1 && (
                     <button 
-                      className="absolute -right-10 top-1/2 transform -translate-y-1/2 bg-gray-700 p-1 rounded-full text-white"
+                      className="absolute -right-10 top-1/2 transform -translate-y-1/2 bg-gray-200 p-1.5 rounded-full text-gray-600 hover:bg-gray-300 transition-colors"
                       onClick={() => swapLocations(index, index + 1)}
+                      title="Swap with next location"
                     >
                       <ArrowUpDown size={16} />
                     </button>
@@ -422,10 +517,10 @@ const App = () => {
             
             {/* Action Buttons */}
             <div className="space-y-3 mb-6">
-              {locations.length < 4 && (
+              {locations.length < 10 && (
                 <button
                   onClick={handleAddAddress}
-                  className="w-full bg-gray-800 text-white py-3 rounded-lg flex items-center justify-center space-x-2 border border-gray-700"
+                  className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg flex items-center justify-center space-x-2 border border-gray-300 hover:bg-gray-200 transition-colors"
                 >
                   <Plus size={20} />
                   <span>Add start point</span>
@@ -435,7 +530,7 @@ const App = () => {
               <button
                 onClick={handleFindMeetingPoint}
                 disabled={isCalculating}
-                className="w-full bg-blue-500 text-white py-4 rounded-lg font-bold flex items-center justify-center disabled:opacity-70"
+                className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold flex items-center justify-center shadow-md hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:hover:bg-blue-600"
               >
                 {isCalculating ? (
                   <>
@@ -450,10 +545,10 @@ const App = () => {
             
             {/* Results section */}
             {bestLocations.length > 0 && bestLocations[0] && (
-              <div className="mt-4 bg-white rounded-lg overflow-hidden">
-                <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
+              <div className="mt-6 bg-white rounded-lg overflow-hidden border border-gray-200 shadow-md">
+                <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
                   <h3 className="text-lg font-bold">Best Meeting Point</h3>
-                  <div className="bg-blue-400 px-3 py-1 rounded-full text-sm font-bold">
+                  <div className="bg-blue-500 px-3 py-1 rounded-full text-sm font-bold">
                     {(bestLocations[0].averageTime / 60).toFixed(1)} min
                   </div>
                 </div>
@@ -497,7 +592,7 @@ const App = () => {
                           : "N/A";
                         
                         return (
-                          <div key={index} className="flex justify-between items-center">
+                          <div key={index} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50">
                             <div className="flex items-center">
                               <div 
                                 className="w-3 h-3 rounded-full mr-2"
@@ -515,7 +610,7 @@ const App = () => {
                     </div>
                   </div>
                   
-                  <button className="mt-4 w-full flex items-center justify-center bg-blue-500 text-white py-3 rounded-lg">
+                  <button className="mt-4 w-full flex items-center justify-center bg-blue-600 text-white py-3 rounded-lg shadow hover:bg-blue-700 transition-colors">
                     <Share2 size={18} className="mr-2" />
                     Share Meeting Point
                   </button>

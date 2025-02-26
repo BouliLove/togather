@@ -1,0 +1,237 @@
+/* Custom styles for Togather App */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Google Maps styling fixes */
+.google-map {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Make sure the map container actually shows the map */
+.gm-style {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Prevent scrolling on main container but allow it on bottom sheet */
+.no-scroll {
+  overflow: hidden;
+}
+
+/* Bottom sheet animations */
+.bottom-sheet-enter {
+  transform: translateY(100%);
+}
+.bottom-sheet-enter-active {
+  transform: translateY(0);
+  transition: transform 300ms;
+}
+.bottom-sheet-exit {
+  transform: translateY(0);
+}
+.bottom-sheet-exit-active {
+  transform: translateY(100%);
+  transition: transform 300ms;
+}
+
+/* Prettier form inputs */
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon input {
+  padding-left: 2.5rem;
+  height: 48px;
+  transition: all 0.2s ease;
+}
+
+.input-with-icon svg {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #4B5563;
+}
+
+/* Custom transport mode button styles */
+.transport-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #F3F4F6;
+  color: #4B5563;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transport-toggle:hover {
+  background-color: #E5E7EB;
+}
+
+.transport-toggle.active {
+  background-color: #3B82F6;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+  .location-card {
+    flex-direction: row;
+  }
+  
+  .bottom-sheet {
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Map container */
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #F3F4F6;
+}
+
+/* Location card styling */
+.location-card {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.location-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.location-card .location-color {
+  width: 4px;
+  height: 100%;
+  margin-right: 0.75rem;
+}
+
+/* "Add location" button styling */
+.add-location-btn {
+  background-color: #F9FAFB;
+  border: 1px dashed #D1D5DB;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  color: #6B7280;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-location-btn:hover {
+  background-color: #F3F4F6;
+  border-color: #9CA3AF;
+}
+
+.add-location-btn svg {
+  margin-right: 0.5rem;
+}
+
+/* Primary button styling */
+.btn-primary {
+  background-color: #3B82F6;
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background-color: #2563EB;
+}
+
+.btn-primary:disabled {
+  background-color: #93C5FD;
+  cursor: not-allowed;
+}
+
+/* Result card styling */
+.result-card {
+  background-color: white;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.result-card .card-header {
+  background-color: #3B82F6;
+  color: white;
+  padding: 1rem;
+  font-weight: 600;
+}
+
+.result-card .card-body {
+  padding: 1rem;
+}
+
+.result-card .card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.result-card .address {
+  color: #6B7280;
+  margin-bottom: 1rem;
+}
+
+.result-time-badge {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-block;
+}
