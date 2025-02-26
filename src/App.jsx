@@ -119,39 +119,41 @@ const App = () => {
             <div className="address-rows">
               {addresses.map((entry, index) => (
                 <div key={index} className="address-row">
-                  <div className="address-input">
-                    <Autocomplete
-                      onLoad={(autocomplete) => onLoad(autocomplete, index)}
-                      onPlaceChanged={() => onPlaceChanged(index)}
-                      options={{
-                        bounds: new window.google.maps.LatLngBounds(
-                          { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
-                          { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
-                        ),
-                        strictBounds: true,
-                        componentRestrictions: { country: "FR" },
-                      }}
-                    >
-                      <input
-                        type="text"
-                        placeholder={`Address ${index + 1}`}
-                        value={entry.address}
-                        onChange={(e) => handleAddressChange(index, e.target.value)}
-                        className="address-input-field"
-                      />
-                    </Autocomplete>
-                  </div>
-                  <div className="transport-select">
-                    <select
-                      value={entry.transport}
-                      onChange={(e) => handleTransportChange(index, e.target.value)}
-                      className="transport-select-field"
-                    >
-                      <option value="driving">Car</option>
-                      <option value="walking">Walking</option>
-                      <option value="bicycling">Bicycle</option>
-                      <option value="transit">Public Transport</option>
-                    </select>
+                  <div className="address-input-group">
+                    <div className="address-input">
+                      <Autocomplete
+                        onLoad={(autocomplete) => onLoad(autocomplete, index)}
+                        onPlaceChanged={() => onPlaceChanged(index)}
+                        options={{
+                          bounds: new window.google.maps.LatLngBounds(
+                            { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
+                            { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
+                          ),
+                          strictBounds: true,
+                          componentRestrictions: { country: "FR" },
+                        }}
+                      >
+                        <input
+                          type="text"
+                          placeholder={`Address ${index + 1}`}
+                          value={entry.address}
+                          onChange={(e) => handleAddressChange(index, e.target.value)}
+                          className="address-input-field"
+                        />
+                      </Autocomplete>
+                    </div>
+                    <div className="transport-select">
+                      <select
+                        value={entry.transport}
+                        onChange={(e) => handleTransportChange(index, e.target.value)}
+                        className="transport-select-field"
+                      >
+                        <option value="driving">Car</option>
+                        <option value="walking">Walking</option>
+                        <option value="bicycling">Bicycle</option>
+                        <option value="transit">Public Transport</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -182,17 +184,17 @@ const App = () => {
                 <h2>Best Meeting Point</h2>
                 <p><strong>{bestLocations[0].name || "Meeting Point"}</strong></p>
                 <p>{bestLocations[0].address || "Address not available"}</p>
-                <p>Average travel time: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
+                <p>Avg travel: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
                 <hr />
                 <h3>Commute times:</h3>
                 <ul className="commute-times-list">
                   {addresses.map((entry, index) => (
                     <li key={index}>
-                      {entry.address.length > 30 ? entry.address.substring(0, 30) + "..." : entry.address}:{" "}
+                      {entry.address.length > 25 ? entry.address.substring(0, 25) + "..." : entry.address}:{" "}
                       {bestLocations[0].travelTimes[index] !== Infinity
                         ? (bestLocations[0].travelTimes[index] / 60).toFixed(1)
                         : "N/A"}{" "}
-                      min (via {entry.transport})
+                      min ({entry.transport})
                     </li>
                   ))}
                 </ul>
