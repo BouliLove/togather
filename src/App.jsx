@@ -219,6 +219,11 @@ const App = () => {
                   zoomControl={false}
                 />
               )}
+              {!mapsLoaded && (
+                <div className="map-loading">
+                  <div className="map-loading-message">Loading map...</div>
+                </div>
+              )}
               <button 
                 className="expand-map-btn" 
                 onClick={toggleMapExpanded}
@@ -383,7 +388,9 @@ const App = () => {
               />
             )}
             {!mapsLoaded && !mapsLoadError && (
-              <div className="map-loading">Loading Google Maps...</div>
+              <div className="map-loading">
+                <div className="map-loading-message">Loading Google Maps...</div>
+              </div>
             )}
             {mapsLoadError && (
               <div className="map-error">

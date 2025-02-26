@@ -38,79 +38,47 @@ const AddressInputs = ({
     }
   };
 
-  // Simple input for fallback (when Google Maps hasn't loaded yet)
-  if (!mapsLoaded) {
-    return (
-      <div className="address-rows">
-        {addresses.map((entry, index) => (
-          <div key={index} className="address-row">
-            <div className="address-input-group">
-              <div className="address-input">
-                <input
-                  type="text"
-                  placeholder={`Address ${index + 1}`}
-                  value={entry.address}
-                  onChange={(e) => onAddressChange(index, e.target.value)}
-                  className="address-input-field"
-                />
-              </div>
-              <div className="transport-select">
-                <select
-                  value={entry.transport}
-                  onChange={(e) => onTransportChange(index, e.target.value)}
-                  className="transport-select-field"
-                >
-                  <option value="driving">Car</option>
-                  <option value="walking">Walking</option>
-                  <option value="bicycling">Bicycle</option>
-                  <option value="transit">Transit</option>
-                </select>
-              </div>
-              {addresses.length > 1 && (
-                <button 
-                  onClick={() => onRemoveAddress(index)} 
-                  className="remove-address-btn"
-                  aria-label="Remove address"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
   // Create bounds object for the autocomplete options
   const createBounds = () => {
     try {
-      return new window.google.maps.LatLngBounds(
-        { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
-        { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
-      );
+      if (window.google && window.google.maps) {
+        return new window.google.maps.LatLngBounds(
+          { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
+          { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
+        );
+      }
+      return undefined;
     } catch (error) {
       console.error('Error creating bounds:', error);
       return undefined;
     }
   };
 
-  // Full component with Google Maps Autocomplete
   return (
     <div className="address-rows">
       {addresses.map((entry, index) => (
         <div key={index} className="address-row">
           <div className="address-input-group">
             <div className="address-input">
-              <Autocomplete
-                onLoad={(autocomplete) => handleLoad(autocomplete, index)}
-                onPlaceChanged={() => handlePlaceChanged(index)}
-                options={{
-                  bounds: createBounds(),
-                  strictBounds: true,
-                  componentRestrictions: { country: "FR" },
-                }}
-              >
+              {mapsLoaded ? (
+                <Autocomplete
+                  onLoad={(autocomplete) => handleLoad(autocomplete, index)}
+                  onPlaceChanged={() => handlePlaceChanged(index)}
+                  options={{
+                    bounds: createBounds(),
+                    strictBounds: true,
+                    componentRestrictions: { country: "FR" },
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder={`Address ${index + 1}`}
+                    value={entry.address}
+                    onChange={(e) => onAddressChange(index, e.target.value)}
+                    className="address-input-field"
+                  />
+                </Autocomplete>
+              ) : (
                 <input
                   type="text"
                   placeholder={`Address ${index + 1}`}
@@ -118,7 +86,7 @@ const AddressInputs = ({
                   onChange={(e) => onAddressChange(index, e.target.value)}
                   className="address-input-field"
                 />
-              </Autocomplete>
+              )}
             </div>
             <div className="transport-select">
               <select
