@@ -181,23 +181,47 @@ const App = () => {
             {/* Meeting Point Details */}
             {bestLocations.length > 0 && (
               <div className="meeting-details">
-                <h2>Best Meeting Point</h2>
-                <p><strong>{bestLocations[0].name || "Meeting Point"}</strong></p>
-                <p>{bestLocations[0].address || "Address not available"}</p>
-                <p>Avg travel: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
-                <hr />
-                <h3>Commute times:</h3>
-                <ul className="commute-times-list">
-                  {addresses.map((entry, index) => (
-                    <li key={index}>
-                      {entry.address.length > 25 ? entry.address.substring(0, 25) + "..." : entry.address}:{" "}
-                      {bestLocations[0].travelTimes[index] !== Infinity
-                        ? (bestLocations[0].travelTimes[index] / 60).toFixed(1)
-                        : "N/A"}{" "}
-                      min ({entry.transport})
-                    </li>
-                  ))}
-                </ul>
+                <div className="meeting-header">
+                  <h2>Best Meeting Point</h2>
+                  <span className="time-badge">{(bestLocations[0].averageTime / 60).toFixed(1)} min</span>
+                </div>
+                
+                <div className="venue-info">
+                  <h3>{bestLocations[0].name || "Meeting Point"}</h3>
+                  <p className="venue-address">{bestLocations[0].address || "Address not available"}</p>
+                </div>
+                
+                <div className="commute-details">
+                  <h4>Commute times:</h4>
+                  <ul className="commute-times-list">
+                    {addresses.map((entry, index) => {
+                      // Format address for display
+                      let displayAddress = entry.address;
+                      const commaIndex = displayAddress.indexOf(',');
+                      if (commaIndex > 0) {
+                        displayAddress = displayAddress.substring(0, commaIndex);
+                      } else if (displayAddress.length > 25) {
+                        displayAddress = displayAddress.substring(0, 25) + "...";
+                      }
+                      
+                      // Get travel time
+                      const travelTime = bestLocations[0].travelTimes[index];
+                      const formattedTime = travelTime !== Infinity
+                        ? (travelTime / 60).toFixed(1)
+                        : "N/A";
+                      
+                      return (
+                        <li key={index} className="commute-item">
+                          <div className="commute-address">{displayAddress}</div>
+                          <div className="commute-time">
+                            <span className="time-value">{formattedTime} min</span>
+                            <span className="transport-mode">({entry.transport})</span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               </div>
             )}
           </div>
