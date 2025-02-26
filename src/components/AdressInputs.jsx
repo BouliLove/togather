@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { LoadScript, Autocomplete } from '@react-google-maps/api';
+import { Autocomplete } from '@react-google-maps/api';
 
 // Define Paris region bounds for Autocomplete
 const ILE_DE_FRANCE_BOUNDS = {
@@ -9,14 +9,13 @@ const ILE_DE_FRANCE_BOUNDS = {
   east: 3.5,
 };
 
-const AddressForm = ({ 
+const AddressInputs = ({ 
   addresses, 
-  googleMapsApiKey, 
+  mapsLoaded,
   onAddressChange, 
   onTransportChange, 
   onPlaceSelect,
-  onRemoveAddress,
-  hasMapError
+  onRemoveAddress
 }) => {
   const autocompleteRefs = useRef([]);
 
@@ -30,7 +29,7 @@ const AddressForm = ({
     try {
       if (autocompleteRefs.current[index]) {
         const place = autocompleteRefs.current[index].getPlace();
-        if (place && place.geometry) {
+        if (place && place.geometry && place.geometry.location) {
           onPlaceSelect(place, index);
         }
       }
@@ -39,8 +38,8 @@ const AddressForm = ({
     }
   };
 
-  // Simple input for fallback (when Google Maps fails to load)
-  if (hasMapError || !googleMapsApiKey) {
+  // Simple input for fallback (when Google Maps hasn't loaded yet)
+  if (!mapsLoaded) {
     return (
       <div className="address-rows">
         {addresses.map((entry, index) => (
@@ -83,6 +82,19 @@ const AddressForm = ({
     );
   }
 
+  // Create bounds object for the autocomplete options
+  const createBounds = () => {
+    try {
+      return new window.google.maps.LatLngBounds(
+        { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
+        { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
+      );
+    } catch (error) {
+      console.error('Error creating bounds:', error);
+      return undefined;
+    }
+  };
+
   // Full component with Google Maps Autocomplete
   return (
     <div className="address-rows">
@@ -90,35 +102,23 @@ const AddressForm = ({
         <div key={index} className="address-row">
           <div className="address-input-group">
             <div className="address-input">
-              <LoadScript
-                googleMapsApiKey={googleMapsApiKey}
-                libraries={["places"]}
-                // Using key to avoid multiple script loads
-                key={`load-script-${index}`}
+              <Autocomplete
+                onLoad={(autocomplete) => handleLoad(autocomplete, index)}
+                onPlaceChanged={() => handlePlaceChanged(index)}
+                options={{
+                  bounds: createBounds(),
+                  strictBounds: true,
+                  componentRestrictions: { country: "FR" },
+                }}
               >
-                <Autocomplete
-                  onLoad={(autocomplete) => handleLoad(autocomplete, index)}
-                  onPlaceChanged={() => handlePlaceChanged(index)}
-                  options={{
-                    bounds: window.google && window.google.maps 
-                      ? new window.google.maps.LatLngBounds(
-                          { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
-                          { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
-                        )
-                      : undefined,
-                    strictBounds: true,
-                    componentRestrictions: { country: "FR" },
-                  }}
-                >
-                  <input
-                    type="text"
-                    placeholder={`Address ${index + 1}`}
-                    value={entry.address}
-                    onChange={(e) => onAddressChange(index, e.target.value)}
-                    className="address-input-field"
-                  />
-                </Autocomplete>
-              </LoadScript>
+                <input
+                  type="text"
+                  placeholder={`Address ${index + 1}`}
+                  value={entry.address}
+                  onChange={(e) => onAddressChange(index, e.target.value)}
+                  className="address-input-field"
+                />
+              </Autocomplete>
             </div>
             <div className="transport-select">
               <select
@@ -148,4 +148,4 @@ const AddressForm = ({
   );
 };
 
-export default AddressForm;
+export default AddressInputs;
