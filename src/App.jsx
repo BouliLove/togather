@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { LoadScript } from "@react-google-maps/api";
 import MapDisplay from "./components/MapDisplay";
-import { MapPin, X, Bike, Car, Train, Walk, Plus, Loader, Share2, ArrowUpDown, Search, ChevronUp, ChevronDown } from 'lucide-react';
+import { MapPin, X, Bike, Car, Train, Footprints, Plus, Loader, Share2, ArrowUpDown, Search, ChevronUp, ChevronDown } from 'lucide-react';
 
 // Constants
 const MAP_CENTER = { lat: 48.8566, lng: 2.3522 }; // Paris
@@ -105,7 +105,7 @@ const MAP_STYLES = [
 ];
 
 const TravelModes = {
-  WALKING: { icon: <Walk size={20} />, label: "Walking" },
+  WALKING: { icon: <Footprints size={20} />, label: "Walking" },
   BICYCLING: { icon: <Bike size={20} />, label: "Bicycling" },
   TRANSIT: { icon: <Train size={20} />, label: "Transit" },
   DRIVING: { icon: <Car size={20} />, label: "Driving" }
