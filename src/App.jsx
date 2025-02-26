@@ -30,6 +30,10 @@ const App = () => {
   const [meetingInfoOpen, setMeetingInfoOpen] = useState(false);
   const [viewMode, setViewMode] = useState("form"); // "form" or "map"
   const [mapExpanded, setMapExpanded] = useState(false); // For mini-map toggle on mobile
+  const [venueType, setVenueType] = useState(""); // New state for venue type
+  const [isLoading, setIsLoading] = useState(false); // Loading state
+  const [error, setError] = useState(null); // Error state
+  const [selectedVenue, setSelectedVenue] = useState(0); // Index of selected venue from alternatives
   const autocompleteRefs = useRef([]);
 
   const handleAddAddress = () => {
@@ -50,6 +54,10 @@ const App = () => {
     setAddresses(newAddresses);
   };
 
+  const handleVenueTypeChange = (e) => {
+    setVenueType(e.target.value);
+  };
+
   const onLoad = (autocomplete, index) => {
     autocompleteRefs.current[index] = autocomplete;
   };
@@ -57,7 +65,7 @@ const App = () => {
   const onPlaceChanged = (index) => {
     if (autocompleteRefs.current[index]) {
       const place = autocompleteRefs.current[index].getPlace();
-      if (place.geometry) {
+      if (place && place.geometry) {
         const { lat, lng } = place.geometry.location;
         handleAddressChange(index, place.formatted_address || "");
         setMarkers((prevMarkers) => {
@@ -70,24 +78,44 @@ const App = () => {
   };
 
   const handleCompute = async () => {
+    // Validate we have at least 2 addresses
+    if (addresses.filter(a => a.address.trim() !== "").length < 2) {
+      setError("Please enter at least two valid addresses");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL;
       const response = await fetch(`${backendUrl}/compute-location`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locations: addresses }),
+        body: JSON.stringify({ 
+          locations: addresses,
+          venueType: venueType.trim() // Send venue type to backend
+        }),
       });
+      
       if (!response.ok) {
-        const error = await response.json();
-        console.error("Error from backend:", error);
+        const errorData = await response.json();
+        console.error("Error from backend:", errorData);
+        setError(errorData.error || "Failed to find meeting point");
         return;
       }
+      
       const data = await response.json();
       setBestLocations([data.bestLocation]);
+      
       // Switch to map view when result is ready on mobile
       setViewMode("map");
+      setSelectedVenue(0); // Reset selected venue to the best one
     } catch (error) {
       console.error("Error connecting to backend:", error);
+      setError("Connection error. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -99,6 +127,32 @@ const App = () => {
   const toggleMapExpanded = () => {
     setMapExpanded(!mapExpanded);
   };
+
+  const selectAlternativeVenue = (index) => {
+    if (bestLocations[0] && bestLocations[0].alternativeVenues && 
+        bestLocations[0].alternativeVenues[index]) {
+      setSelectedVenue(index + 1);
+      
+      // Update the marker on the map
+      const venue = bestLocations[0].alternativeVenues[index];
+      setMeetingInfoOpen(true);
+    }
+  };
+
+  // Get the currently selected venue (best or alternative)
+  const getCurrentVenue = () => {
+    if (!bestLocations[0]) return null;
+    
+    if (selectedVenue === 0) {
+      return bestLocations[0];
+    } else if (bestLocations[0].alternativeVenues && bestLocations[0].alternativeVenues[selectedVenue - 1]) {
+      return bestLocations[0].alternativeVenues[selectedVenue - 1];
+    }
+    
+    return bestLocations[0];
+  };
+
+  const currentVenue = getCurrentVenue();
 
   return (
     <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={["places"]}>
@@ -112,9 +166,53 @@ const App = () => {
           )}
         </header>
 
-        <div className={`app-container ${viewMode}`}>
+        <div className={`app-container ${viewMode} ${mapExpanded ? 'map-expanded' : ''}`}>
+          {/* Mini Map Preview (mobile only) */}
+          <div className="mini-map-container">
+            <div className="mini-map-wrapper">
+              <GoogleMap
+                mapContainerClassName="mini-google-map"
+                center={markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
+                zoom={markers.length > 0 ? 11 : 10}
+                options={{ styles: MAP_STYLES, disableDefaultUI: true, zoomControl: false }}
+              >
+                {markers.map((position, index) => (
+                  <Marker key={index} position={position} />
+                ))}
+                {bestLocations.length > 0 && currentVenue && (
+                  <Marker
+                    position={currentVenue.location}
+                    icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
+                  />
+                )}
+              </GoogleMap>
+              <button 
+                className="expand-map-btn" 
+                onClick={toggleMapExpanded}
+                aria-label={mapExpanded ? "Minimize map" : "Expand map"}
+              >
+                {mapExpanded ? "↓" : "↑"}
+              </button>
+            </div>
+          </div>
+          
           {/* FORM CONTAINER */}
           <div className="form-container">
+            {/* Venue Type Input */}
+            <div className="venue-type-container">
+              <label htmlFor="venue-type" className="venue-type-label">
+                What kind of place are you looking for?
+              </label>
+              <input
+                id="venue-type"
+                type="text" 
+                placeholder="e.g., restaurant, cinema, park, tennis..." 
+                value={venueType}
+                onChange={handleVenueTypeChange}
+                className="venue-type-input"
+              />
+            </div>
+            
             {/* Rows Container */}
             <div className="address-rows">
               {addresses.map((entry, index) => (
@@ -151,117 +249,3 @@ const App = () => {
                         <option value="driving">Car</option>
                         <option value="walking">Walking</option>
                         <option value="bicycling">Bicycle</option>
-                        <option value="transit">Public Transport</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="action-buttons">
-              <button
-                onClick={handleAddAddress}
-                disabled={addresses.length >= 10}
-                className="add-address-btn"
-              >
-                Add start point
-              </button>
-              {addresses.length >= 2 && (
-                <button
-                  onClick={handleCompute}
-                  className="compute-btn"
-                >
-                  Find best meeting point
-                </button>
-              )}
-            </div>
-            
-            {/* Meeting Point Details */}
-            {bestLocations.length > 0 && (
-              <div className="meeting-details">
-                <div className="meeting-header">
-                  <h2>Best Meeting Point</h2>
-                  <span className="time-badge">{(bestLocations[0].averageTime / 60).toFixed(1)} min</span>
-                </div>
-                
-                <div className="venue-info">
-                  <h3>{bestLocations[0].name || "Meeting Point"}</h3>
-                  <p className="venue-address">{bestLocations[0].address || "Address not available"}</p>
-                </div>
-                
-                <div className="commute-details">
-                  <h4>Commute times:</h4>
-                  <ul className="commute-times-list">
-                    {addresses.map((entry, index) => {
-                      // Format address for display
-                      let displayAddress = entry.address;
-                      const commaIndex = displayAddress.indexOf(',');
-                      if (commaIndex > 0) {
-                        displayAddress = displayAddress.substring(0, commaIndex);
-                      } else if (displayAddress.length > 25) {
-                        displayAddress = displayAddress.substring(0, 25) + "...";
-                      }
-                      
-                      // Get travel time
-                      const travelTime = bestLocations[0].travelTimes[index];
-                      const formattedTime = travelTime !== Infinity
-                        ? (travelTime / 60).toFixed(1)
-                        : "N/A";
-                      
-                      return (
-                        <li key={index} className="commute-item">
-                          <div className="commute-address">{displayAddress}</div>
-                          <div className="commute-time">
-                            <span className="time-value">{formattedTime} min</span>
-                            <span className="transport-mode">({entry.transport})</span>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* MAP CONTAINER */}
-          <div className="map-container">
-            <GoogleMap
-              mapContainerClassName="google-map"
-              center={MAP_CENTER}
-              zoom={12}
-              options={{ styles: MAP_STYLES, disableDefaultUI: true, zoomControl: true }}
-            >
-              {markers.map((position, index) => (
-                <Marker key={index} position={position} />
-              ))}
-              {bestLocations.length > 0 && (
-                <Marker
-                  position={bestLocations[0].location}
-                  icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
-                  onClick={() => setMeetingInfoOpen(true)}
-                />
-              )}
-              {meetingInfoOpen && bestLocations.length > 0 && (
-                <InfoWindow
-                  position={bestLocations[0].location}
-                  onCloseClick={() => setMeetingInfoOpen(false)}
-                >
-                  <div className="info-window-content">
-                    <h3>{bestLocations[0].name || "Meeting Point"}</h3>
-                    <p>{bestLocations[0].address || "Address not available"}</p>
-                    <p>Average travel time: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
-                  </div>
-                </InfoWindow>
-              )}
-            </GoogleMap>
-          </div>
-        </div>
-      </div>
-    </LoadScript>
-  );
-};
-
-export default App;
