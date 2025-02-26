@@ -1,15 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
-import { LoadScript, Autocomplete, GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
+import React, { useState, useRef } from "react";
 import "./App.css";
+import MapContainer from "./components/MapContainer";
+import AddressForm from "./components/AddressForm";
 
-const ILE_DE_FRANCE_BOUNDS = {
-  north: 49.1,
-  south: 48.0,
-  west: 1.5,
-  east: 3.5,
-};
-
-const MAP_CENTER = { lat: 48.8566, lng: 2.3522 };
+const MAP_CENTER = { lat: 48.8566, lng: 2.3522 }; // Paris
 
 const MAP_STYLES = [
   { elementType: "geometry", stylers: [{ color: "#212121" }] },
@@ -24,65 +18,33 @@ const MAP_STYLES = [
 ];
 
 const App = () => {
-  // App states
+  // Get environment variables
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+  
+  // State management
   const [addresses, setAddresses] = useState([{ address: "", transport: "transit" }]);
   const [markers, setMarkers] = useState([]);
   const [bestLocations, setBestLocations] = useState([]);
   const [meetingInfoOpen, setMeetingInfoOpen] = useState(false);
   const [viewMode, setViewMode] = useState("form"); // "form" or "map"
   const [mapExpanded, setMapExpanded] = useState(false); // For mini-map toggle on mobile
-  const [venueType, setVenueType] = useState(""); // Type of venue
+  const [venueType, setVenueType] = useState(""); // New state for venue type
   const [isLoading, setIsLoading] = useState(false); // Loading state
   const [error, setError] = useState(null); // Error state
+  const [hasMapError, setHasMapError] = useState(false);
   
-  // Loading states for APIs
-  const [mapsLoaded, setMapsLoaded] = useState(false);
-  const [mapsError, setMapsError] = useState(null);
-  const [backendAvailable, setBackendAvailable] = useState(true);
-
-  // Get API key from environment
-  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
-  
+  // Refs for autocomplete instances
   const autocompleteRefs = useRef([]);
 
-  // Validate configuration on startup
-  useEffect(() => {
-    // Check if Google Maps API key is configured
-    if (!googleMapsApiKey) {
-      setMapsError("Google Maps API key is missing. Please check your environment configuration.");
-      console.error("VITE_GOOGLE_MAPS_API_KEY is missing");
-    }
-    
-    // Validate backend connectivity
-    const checkBackend = async () => {
-      try {
-        // Simple HEAD request to check if backend is available
-        const response = await fetch(`${backendUrl}`, { method: 'HEAD' });
-        if (!response.ok) {
-          setBackendAvailable(false);
-          setError("Backend service appears to be unavailable.");
-          console.error("Backend connectivity issue:", response.status);
-        }
-      } catch (err) {
-        setBackendAvailable(false);
-        setError("Could not connect to backend service.");
-        console.error("Backend connection error:", err);
-      }
-    };
-    
-    // Only check backend if we have a key (to avoid multiple errors)
-    if (googleMapsApiKey) {
-      checkBackend();
-    }
-  }, [googleMapsApiKey, backendUrl]);
-
+  // Handle adding a new address row
   const handleAddAddress = () => {
     if (addresses.length < 10) {
       setAddresses([...addresses, { address: "", transport: "transit" }]);
     }
   };
 
+  // Handle removing an address row
   const handleRemoveAddress = (index) => {
     if (addresses.length <= 1) return; // Don't remove if it's the last one
     
@@ -95,47 +57,42 @@ const App = () => {
     setMarkers(newMarkers);
   };
 
+  // Handle updating address values
   const handleAddressChange = (index, value) => {
     const newAddresses = [...addresses];
     newAddresses[index].address = value;
     setAddresses(newAddresses);
   };
 
+  // Handle updating transport mode
   const handleTransportChange = (index, transport) => {
     const newAddresses = [...addresses];
     newAddresses[index].transport = transport;
     setAddresses(newAddresses);
   };
 
+  // Handle venue type input changes
   const handleVenueTypeChange = (e) => {
     setVenueType(e.target.value);
   };
 
-  const onLoad = (autocomplete, index) => {
-    if (autocomplete) {
-      autocompleteRefs.current[index] = autocomplete;
+  // Handle place selection from autocomplete
+  const handlePlaceSelect = (place, index) => {
+    if (place && place.geometry && place.geometry.location) {
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      
+      // Update the address with formatted address
+      handleAddressChange(index, place.formatted_address || "");
+      
+      // Update markers
+      const newMarkers = [...markers];
+      newMarkers[index] = { lat, lng };
+      setMarkers(newMarkers);
     }
   };
 
-  const onPlaceChanged = (index) => {
-    try {
-      if (autocompleteRefs.current[index]) {
-        const place = autocompleteRefs.current[index].getPlace();
-        if (place && place.geometry && place.geometry.location) {
-          const { lat, lng } = place.geometry.location;
-          handleAddressChange(index, place.formatted_address || "");
-          
-          const newMarkers = [...markers];
-          newMarkers[index] = { lat: lat(), lng: lng() };
-          setMarkers(newMarkers);
-        }
-      }
-    } catch (err) {
-      console.error("Error in onPlaceChanged:", err);
-      setError("Error selecting place. Please try again.");
-    }
-  };
-
+  // Handle compute button click - calculate best meeting point
   const handleCompute = async () => {
     // Validate we have at least 2 addresses
     const validAddresses = addresses.filter(a => a.address.trim() !== "");
@@ -153,14 +110,17 @@ const App = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           locations: addresses,
-          venueType: venueType.trim()
+          venueType: venueType.trim() // Send venue type to backend
         }),
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error from backend:", errorData);
-        setError(errorData.error || "Failed to find meeting point");
+        try {
+          const errorData = await response.json();
+          setError(errorData.error || "Failed to find meeting point");
+        } catch (e) {
+          setError(`Server error: ${response.status}`);
+        }
         return;
       }
       
@@ -171,46 +131,29 @@ const App = () => {
       setViewMode("map");
     } catch (error) {
       console.error("Error connecting to backend:", error);
-      setError("Connection error. Please try again.");
+      setError("Connection error. Please check your internet connection and try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Handle map/form view toggling
   const toggleView = () => {
     setViewMode(viewMode === "form" ? "map" : "form");
     setMapExpanded(false);
   };
   
+  // Handle mini-map expansion on mobile
   const toggleMapExpanded = () => {
     setMapExpanded(!mapExpanded);
   };
 
-  const handleMapsLoaded = () => {
-    setMapsLoaded(true);
-    console.log("Google Maps API loaded successfully");
-  };
-
-  const handleMapsError = (error) => {
-    setMapsError(`Failed to load Google Maps: ${error}`);
+  // Handle Map loading errors
+  const handleMapError = (error) => {
     console.error("Google Maps loading error:", error);
+    setHasMapError(true);
+    setError("Failed to load Google Maps. Please check your internet connection and try again.");
   };
-
-  // If there's a configuration error, show it immediately
-  if (mapsError) {
-    return (
-      <div className="togather-app error-container">
-        <header className="app-header">
-          <h1>Togather</h1>
-        </header>
-        <div className="config-error">
-          <h2>Configuration Error</h2>
-          <p>{mapsError}</p>
-          <p>Please check your environment variables and ensure VITE_GOOGLE_MAPS_API_KEY is properly set.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="togather-app">
@@ -227,31 +170,18 @@ const App = () => {
         {/* Mini Map Preview (mobile only) */}
         <div className="mini-map-container">
           <div className="mini-map-wrapper">
-            {googleMapsApiKey && (
-              <LoadScript 
-                googleMapsApiKey={googleMapsApiKey}
-                libraries={["places"]}
-                onLoad={handleMapsLoaded}
-                onError={handleMapsError}
-              >
-                <GoogleMap
-                  mapContainerClassName="mini-google-map"
-                  center={markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
-                  zoom={markers.length > 0 ? 11 : 10}
-                  options={{ styles: MAP_STYLES, disableDefaultUI: true, zoomControl: false }}
-                >
-                  {markers.map((position, index) => (
-                    <Marker key={index} position={position} />
-                  ))}
-                  {bestLocations.length > 0 && bestLocations[0].location && (
-                    <Marker
-                      position={bestLocations[0].location}
-                      icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
-                    />
-                  )}
-                </GoogleMap>
-              </LoadScript>
-            )}
+            <MapContainer
+              apiKey={googleMapsApiKey}
+              center={markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
+              zoom={markers.length > 0 ? 11 : 10}
+              markers={markers}
+              selectedLocation={bestLocations.length > 0 ? bestLocations[0] : null}
+              mapStyles={MAP_STYLES}
+              className="mini-google-map"
+              disableDefaultUI={true}
+              zoomControl={false}
+              onError={handleMapError}
+            />
             <button 
               className="expand-map-btn" 
               onClick={toggleMapExpanded}
@@ -286,98 +216,27 @@ const App = () => {
             </div>
           )}
           
-          {/* Config info for debugging */}
-          {import.meta.env.DEV && (
-            <div className="debug-info">
-              <div>Maps API Key: {googleMapsApiKey ? '✅ Configured' : '❌ Missing'}</div>
-              <div>Backend URL: {backendUrl}</div>
-              <div>Backend Status: {backendAvailable ? '✅ Available' : '❌ Unreachable'}</div>
-            </div>
-          )}
-          
           {/* Starting Points Heading */}
           <div className="section-heading">
             <h2>Starting Points</h2>
           </div>
           
-          {/* Rows Container */}
-          <div className="address-rows">
-            {addresses.map((entry, index) => (
-              <div key={index} className="address-row">
-                <div className="address-input-group">
-                  <div className="address-input">
-                    {googleMapsApiKey && (
-                      <LoadScript 
-                        googleMapsApiKey={googleMapsApiKey} 
-                        libraries={["places"]}
-                        onLoad={handleMapsLoaded}
-                        onError={handleMapsError}
-                      >
-                        <Autocomplete
-                          onLoad={(autocomplete) => onLoad(autocomplete, index)}
-                          onPlaceChanged={() => onPlaceChanged(index)}
-                          options={{
-                            bounds: new window.google.maps.LatLngBounds(
-                              { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
-                              { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
-                            ),
-                            strictBounds: true,
-                            componentRestrictions: { country: "FR" },
-                          }}
-                        >
-                          <input
-                            type="text"
-                            placeholder={`Address ${index + 1}`}
-                            value={entry.address}
-                            onChange={(e) => handleAddressChange(index, e.target.value)}
-                            className="address-input-field"
-                          />
-                        </Autocomplete>
-                      </LoadScript>
-                    )}
-                    
-                    {!googleMapsApiKey && (
-                      <input
-                        type="text"
-                        placeholder={`Address ${index + 1}`}
-                        value={entry.address}
-                        onChange={(e) => handleAddressChange(index, e.target.value)}
-                        className="address-input-field"
-                        disabled={!googleMapsApiKey}
-                      />
-                    )}
-                  </div>
-                  <div className="transport-select">
-                    <select
-                      value={entry.transport}
-                      onChange={(e) => handleTransportChange(index, e.target.value)}
-                      className="transport-select-field"
-                    >
-                      <option value="driving">Car</option>
-                      <option value="walking">Walking</option>
-                      <option value="bicycling">Bicycle</option>
-                      <option value="transit">Transit</option>
-                    </select>
-                  </div>
-                  {addresses.length > 1 && (
-                    <button 
-                      onClick={() => handleRemoveAddress(index)} 
-                      className="remove-address-btn"
-                      aria-label="Remove address"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* Address form component */}
+          <AddressForm
+            addresses={addresses}
+            googleMapsApiKey={googleMapsApiKey}
+            onAddressChange={handleAddressChange}
+            onTransportChange={handleTransportChange}
+            onPlaceSelect={handlePlaceSelect}
+            onRemoveAddress={handleRemoveAddress}
+            hasMapError={hasMapError}
+          />
           
           {/* Action Buttons */}
           <div className="action-buttons">
             <button
               onClick={handleAddAddress}
-              disabled={addresses.length >= 10}
+              disabled={addresses.length >= 10 || isLoading}
               className="add-address-btn"
             >
               Add start point
@@ -386,7 +245,7 @@ const App = () => {
               <button
                 onClick={handleCompute}
                 className="compute-btn"
-                disabled={isLoading || !googleMapsApiKey || !backendAvailable}
+                disabled={isLoading || hasMapError}
               >
                 {isLoading ? "Finding..." : "Find best meeting point"}
               </button>
@@ -471,51 +330,22 @@ const App = () => {
         
         {/* MAP CONTAINER */}
         <div className="map-container">
-          {googleMapsApiKey && (
-            <LoadScript 
-              googleMapsApiKey={googleMapsApiKey} 
-              libraries={["places"]}
-              onLoad={handleMapsLoaded}
-              onError={handleMapsError}
-            >
-              <GoogleMap
-                mapContainerClassName="google-map"
-                center={bestLocations.length > 0 && bestLocations[0].location ? bestLocations[0].location : 
-                       markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
-                zoom={12}
-                options={{ styles: MAP_STYLES, disableDefaultUI: true, zoomControl: true }}
-              >
-                {markers.map((position, index) => (
-                  <Marker key={index} position={position} />
-                ))}
-                {bestLocations.length > 0 && bestLocations[0].location && (
-                  <Marker
-                    position={bestLocations[0].location}
-                    icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
-                    onClick={() => setMeetingInfoOpen(true)}
-                  />
-                )}
-                {meetingInfoOpen && bestLocations.length > 0 && bestLocations[0].location && (
-                  <InfoWindow
-                    position={bestLocations[0].location}
-                    onCloseClick={() => setMeetingInfoOpen(false)}
-                  >
-                    <div className="info-window-content">
-                      <h3>{bestLocations[0].name || "Meeting Point"}</h3>
-                      <p>{bestLocations[0].address || "Address not available"}</p>
-                      <p>Average travel time: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
-                    </div>
-                  </InfoWindow>
-                )}
-              </GoogleMap>
-            </LoadScript>
-          )}
-          
-          {!googleMapsApiKey && (
-            <div className="map-error-container">
-              <p>Google Maps API key is missing. Please check your configuration.</p>
-            </div>
-          )}
+          <MapContainer
+            apiKey={googleMapsApiKey}
+            center={bestLocations.length > 0 && bestLocations[0].location 
+              ? bestLocations[0].location 
+              : markers.length > 0 
+                ? markers[markers.length - 1] 
+                : MAP_CENTER}
+            zoom={12}
+            markers={markers}
+            selectedLocation={bestLocations.length > 0 ? bestLocations[0] : null}
+            mapStyles={MAP_STYLES}
+            onError={handleMapError}
+            showInfoWindow={meetingInfoOpen}
+            onInfoWindowClose={() => setMeetingInfoOpen(false)}
+            onMarkerClick={() => setMeetingInfoOpen(true)}
+          />
         </div>
       </div>
     </div>
