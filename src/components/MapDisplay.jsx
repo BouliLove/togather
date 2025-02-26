@@ -16,6 +16,7 @@ const MapDisplay = ({
 }) => {
   const [infoOpen, setInfoOpen] = useState(showInfoWindow);
   const [mapInstance, setMapInstance] = useState(null);
+  const [mapError, setMapError] = useState(null);
 
   // Update infoOpen when showInfoWindow prop changes
   useEffect(() => {
@@ -33,8 +34,46 @@ const MapDisplay = ({
   };
 
   const handleMapLoad = (map) => {
-    setMapInstance(map);
+    try {
+      if (!map || typeof map.getCenter !== 'function') {
+        console.error('Map failed to initialize correctly');
+        setMapError('Map initialization failed');
+        return;
+      }
+      
+      setMapInstance(map);
+      console.log('Map instance loaded successfully');
+    } catch (error) {
+      console.error('Error loading map:', error);
+      setMapError(`Map error: ${error.message}`);
+    }
   };
+
+  // Handle map load error
+  const handleMapLoadError = (error) => {
+    console.error('Map load error:', error);
+    setMapError(`Failed to load map: ${error.message}`);
+  };
+
+  if (mapError) {
+    return (
+      <div className={`${className} map-error`}>
+        <div className="map-error-message">
+          <h3>Map Error</h3>
+          <p>{mapError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if Google Maps is available before rendering
+  if (!window.google || !window.google.maps) {
+    return (
+      <div className={`${className} map-loading`}>
+        <div className="map-loading-message">Initializing map...</div>
+      </div>
+    );
+  }
 
   return (
     <GoogleMap
@@ -47,9 +86,10 @@ const MapDisplay = ({
         zoomControl,
       }}
       onLoad={handleMapLoad}
+      onError={handleMapLoadError}
     >
       {/* Render all standard markers */}
-      {markers.map((position, index) => (
+      {markers && markers.map((position, index) => (
         <Marker key={`marker-${index}`} position={position} />
       ))}
 
