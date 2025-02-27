@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { LoadScript } from "@react-google-maps/api";
 import MapDisplay from "./components/MapDisplay";
-import { MapPin, X, Bike, Car, Train, Footprints, Plus, Loader, Share2, ArrowUpDown, Search, ChevronUp, ChevronDown } from 'lucide-react';
+import { MapPin, X, Bike, Car, Train, Walk, Plus, Loader, Share2, Search, ChevronUp, ChevronDown } from 'lucide-react';
 
 // Constants
 const MAP_CENTER = { lat: 48.8566, lng: 2.3522 }; // Paris
@@ -105,7 +105,7 @@ const MAP_STYLES = [
 ];
 
 const TravelModes = {
-  WALKING: { icon: <Footprints size={20} />, label: "Walking" },
+  WALKING: { icon: <Walk size={20} />, label: "Walking" },
   BICYCLING: { icon: <Bike size={20} />, label: "Bicycling" },
   TRANSIT: { icon: <Train size={20} />, label: "Transit" },
   DRIVING: { icon: <Car size={20} />, label: "Driving" }
@@ -120,8 +120,8 @@ const App = () => {
   
   // State management
   const [locations, setLocations] = useState([
-    { id: 1, address: "", transport: "transit", color: COLORS[0] },
-    { id: 2, address: "", transport: "transit", color: COLORS[1] }
+    { id: 1, address: "", transport: "WALKING", color: COLORS[0] },
+    { id: 2, address: "", transport: "WALKING", color: COLORS[1] }
   ]);
   const [markers, setMarkers] = useState([]);
   const [bestLocations, setBestLocations] = useState([]);
@@ -201,15 +201,6 @@ const App = () => {
       }
     } catch (error) {
       console.error("Error handling place selection:", error);
-    }
-  };
-
-  // Swap locations
-  const swapLocations = (index1, index2) => {
-    if (index1 >= 0 && index2 >= 0 && index1 < locations.length && index2 < locations.length) {
-      const newLocations = [...locations];
-      [newLocations[index1], newLocations[index2]] = [newLocations[index2], newLocations[index1]];
-      setLocations(newLocations);
     }
   };
 
@@ -499,17 +490,6 @@ const App = () => {
                         </div>
                       ))}
                     </div>
-                  )}
-
-                  {/* Swap button */}
-                  {index < locations.length - 1 && (
-                    <button 
-                      className="absolute -right-10 top-1/2 transform -translate-y-1/2 bg-gray-200 p-1.5 rounded-full text-gray-600 hover:bg-gray-300 transition-colors"
-                      onClick={() => swapLocations(index, index + 1)}
-                      title="Swap with next location"
-                    >
-                      <ArrowUpDown size={16} />
-                    </button>
                   )}
                 </div>
               ))}
