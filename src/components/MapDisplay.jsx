@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
 
+// Colors for markers - defined at component level to ensure availability
+const COLORS = ['#FF5252', '#4CAF50', '#2196F3', '#FFC107'];
+
 const MapDisplay = ({ 
   center = { lat: 48.8566, lng: 2.3522 }, // Paris by default
   zoom = 12,
@@ -170,8 +173,5 @@ const MapDisplay = ({
     </GoogleMap>
   );
 };
-
-// Colors for markers
-const COLORS = ['#FF5252', '#4CAF50', '#2196F3', '#FFC107'];
 
 export default MapDisplay;
