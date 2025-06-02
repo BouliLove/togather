@@ -1,213 +1,429 @@
-import React, { useState, useRef } from "react";
-import { LoadScript, Autocomplete, GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
+import React, { useState, useRef, useEffect } from "react";
+import { MapPin, X, Bike, Car, Train, Footprints, Plus, Loader, Share2, Search, ChevronUp, ChevronDown, Users, Clock, Star, Navigation, Menu } from 'lucide-react';
 
-const ILE_DE_FRANCE_BOUNDS = {
-  north: 49.1,
-  south: 48.0,
-  west: 1.5,
-  east: 3.5,
-};
+// Mock MapDisplay component
+const MapDisplay = ({ center, zoom, markers, selectedLocation, className }) => (
+  <div className={`map-display ${className}`}>
+    <div className="map-placeholder">
+      <MapPin size={48} style={{ color: '#3b82f6', margin: '0 auto 8px' }} />
+      <p style={{ fontSize: '14px' }}>Google Maps would render here</p>
+      <p style={{ fontSize: '12px', marginTop: '4px' }}>{markers?.length || 0} markers</p>
+    </div>
+  </div>
+);
 
+// Constants
 const MAP_CENTER = { lat: 48.8566, lng: 2.3522 };
 
-const MAP_STYLES = [
-  { elementType: "geometry", stylers: [{ color: "#212121" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#373737" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d47a1" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#ffffff" }] },
-];
+const TravelModes = {
+  WALKING: { icon: <Footprints size={18} />, label: "Walking", className: "transport-walking" },
+  BICYCLING: { icon: <Bike size={18} />, label: "Bicycling", className: "transport-bicycling" },
+  TRANSIT: { icon: <Train size={18} />, label: "Transit", className: "transport-transit" },
+  DRIVING: { icon: <Car size={18} />, label: "Driving", className: "transport-driving" }
+};
+
+const COLORS = ['#EF4444', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4', '#84CC16'];
 
 const App = () => {
-  const [addresses, setAddresses] = useState([]);
+  // State management
+  const [locations, setLocations] = useState([
+    { id: 1, address: "", transport: "WALKING", color: COLORS[0] },
+    { id: 2, address: "", transport: "WALKING", color: COLORS[1] }
+  ]);
+  
   const [markers, setMarkers] = useState([]);
   const [bestLocations, setBestLocations] = useState([]);
-  const [meetingInfoOpen, setMeetingInfoOpen] = useState(false);
-  const autocompleteRefs = useRef([]);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [viewMode, setViewMode] = useState("form");
+  const [venueType, setVenueType] = useState("");
+  const [error, setError] = useState(null);
+  const [mapsLoaded, setMapsLoaded] = useState(true);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
+  // Handlers
   const handleAddAddress = () => {
-    if (addresses.length < 10) {
-      setAddresses([...addresses, { address: "", transport: "transit" }]);
+    if (locations.length < 8) {
+      setLocations([...locations, { 
+        id: Date.now(), 
+        address: '', 
+        transport: 'WALKING',
+        color: COLORS[locations.length % COLORS.length]
+      }]);
     }
   };
 
-  const handleAddressChange = (index, value) => {
-    const newAddresses = [...addresses];
-    newAddresses[index].address = value;
-    setAddresses(newAddresses);
+  const handleRemoveAddress = (id) => {
+    if (locations.length > 2) {
+      setLocations(locations.filter(loc => loc.id !== id));
+    }
   };
 
-  const handleTransportChange = (index, transport) => {
-    const newAddresses = [...addresses];
-    newAddresses[index].transport = transport;
-    setAddresses(newAddresses);
+  const handleAddressChange = (id, value) => {
+    setLocations(locations.map(loc => 
+      loc.id === id ? { ...loc, address: value } : loc
+    ));
   };
 
-  const onLoad = (autocomplete, index) => {
-    autocompleteRefs.current[index] = autocomplete;
-  };
-
-  const onPlaceChanged = (index) => {
-    if (autocompleteRefs.current[index]) {
-      const place = autocompleteRefs.current[index].getPlace();
-      if (place.geometry) {
-        const { lat, lng } = place.geometry.location;
-        handleAddressChange(index, place.formatted_address || "");
-        setMarkers((prevMarkers) => {
-          const newMarkers = [...prevMarkers];
-          newMarkers[index] = { lat: lat(), lng: lng() };
-          return newMarkers;
-        });
+  const handleToggleTravelMode = (id) => {
+    setLocations(locations.map(loc => {
+      if (loc.id === id) {
+        const modes = Object.keys(TravelModes);
+        const currentIndex = modes.indexOf(loc.transport);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        return { ...loc, transport: modes[nextIndex] };
       }
-    }
+      return loc;
+    }));
   };
 
-  const handleCompute = async () => {
-    try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL;
-      const response = await fetch(`${backendUrl}/compute-location`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locations: addresses }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        console.error("Error from backend:", error);
-        return;
-      }
-      const data = await response.json();
-      setBestLocations([data.bestLocation]);
-    } catch (error) {
-      console.error("Error connecting to backend:", error);
+  const handleFindMeetingPoint = async () => {
+    const validAddresses = locations.filter(a => a.address.trim() !== "");
+    if (validAddresses.length < 2) {
+      setError("Please enter at least two valid addresses");
+      return;
     }
+
+    setIsCalculating(true);
+    setError(null);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setBestLocations([{
+        name: "Café Central",
+        address: "Place du Châtelet, Paris",
+        location: { lat: 48.8583, lng: 2.3472 },
+        averageTime: 900, // 15 minutes
+        rating: 4.3,
+        userRatingsTotal: 245,
+        travelTimes: [720, 840, 960, 1080],
+        alternativeVenues: [
+          { name: "Brasserie Lipp", averageTime: 1020 },
+          { name: "Le Procope", averageTime: 1140 }
+        ]
+      }]);
+      setIsCalculating(false);
+      if (window.innerWidth < 768) {
+        setViewMode("map");
+      }
+    }, 2000);
+  };
+
+  const toggleView = () => {
+    setViewMode(viewMode === "form" ? "map" : "form");
+    setShowMobileMenu(false);
   };
 
   return (
-    <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={["places"]}>
-      <div style={{ display: "flex", height: "calc(100vh - 20px)", width: "calc(100vw - 20px)", gap: "20px", padding: "10px", boxSizing: "border-box", margin: "10px" }}>
-        {/* LEFT CONTAINER */}
-        <div style={{ width: "50%", background: "#f8f9fa", padding: "20px", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box" }}>
-          <h1 style={{ fontSize: "28px", marginBottom: "20px", textAlign: "center", color: "#000", fontWeight: "bold" }}>Togather</h1>
-          {/* Rows Container */}
-          <div style={{ flex: 1, overflowY: "auto", marginBottom: "20px" }}>
-            {addresses.map((entry, index) => (
-              <div key={index} style={{ display: "flex", alignItems: "center", gap: "50px", padding: "10px 0", borderBottom: "1px solid #ddd" }}>
-                <div style={{ flex: 1 }}>
-                  <Autocomplete
-                    onLoad={(autocomplete) => onLoad(autocomplete, index)}
-                    onPlaceChanged={() => onPlaceChanged(index)}
-                    options={{
-                      bounds: new window.google.maps.LatLngBounds(
-                        { lat: ILE_DE_FRANCE_BOUNDS.south, lng: ILE_DE_FRANCE_BOUNDS.west },
-                        { lat: ILE_DE_FRANCE_BOUNDS.north, lng: ILE_DE_FRANCE_BOUNDS.east }
-                      ),
-                      strictBounds: true,
-                      componentRestrictions: { country: "FR" },
-                    }}
-                  >
-                    <input
-                      type="text"
-                      placeholder={`Address ${index + 1}`}
-                      value={entry.address}
-                      onChange={(e) => handleAddressChange(index, e.target.value)}
-                      style={{ width: "100%", padding: "10px", fontSize: "16px", borderRadius: "5px", border: "1px solid #ccc" }}
-                    />
-                  </Autocomplete>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <select
-                    value={entry.transport}
-                    onChange={(e) => handleTransportChange(index, e.target.value)}
-                    style={{ width: "100%", padding: "10px", fontSize: "16px", borderRadius: "5px", border: "1px solid #ccc" }}
-                  >
-                    <option value="driving">Car</option>
-                    <option value="walking">Walking</option>
-                    <option value="bicycling">Bicycle</option>
-                    <option value="transit">Public Transport</option>
-                  </select>
-                </div>
-              </div>
-            ))}
+    <div className="togather-app">
+      {/* Header */}
+      <header className="app-header">
+        <div className="header-content">
+          <div className="header-logo">
+            <div className="logo-icon">
+              <MapPin size={18} color="white" />
+            </div>
+            <h1 className="logo-text">Togather</h1>
           </div>
-          {/* Buttons Row */}
-          <div style={{ display: "flex", gap: "50px" }}>
-            <button
-              onClick={handleAddAddress}
-              disabled={addresses.length >= 10}
-              style={{ flex: 1, padding: "10px", backgroundColor: "#6c757d", color: "#fff", border: "none", borderRadius: "5px", fontSize: "16px" }}
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Stats - Desktop */}
+            <div className="header-stats">
+              <div className="stat-item">
+                <Users size={14} />
+                <span>{locations.filter(l => l.address).length} people</span>
+              </div>
+              {bestLocations.length > 0 && (
+                <div className="stat-item">
+                  <Clock size={14} />
+                  <span>{Math.round(bestLocations[0].averageTime / 60)} min avg</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Mobile Menu Button */}
+            <button 
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="mobile-menu-btn"
             >
-              Add a new starting point
+              <Menu size={20} />
             </button>
-            {addresses.length >= 2 && (
-              <button
-                onClick={handleCompute}
-                style={{ flex: 1, padding: "10px", backgroundColor: "#007bff", color: "#fff", border: "none", borderRadius: "5px", fontSize: "16px" }}
+            
+            {/* View Toggle - Desktop */}
+            {(markers.length > 0 || bestLocations.length > 0) && (
+              <button 
+                onClick={toggleView}
+                className="view-toggle-btn"
               >
-                Find the best meeting point
+                <Navigation size={16} />
+                <span>{viewMode === "form" ? "View Map" : "Back to Form"}</span>
               </button>
             )}
           </div>
-          {/* Meeting Point Details */}
-          {bestLocations.length > 0 && (
-            <div style={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc", borderRadius: "5px", background: "#f0f0f0", color: "#333" }}>
-              <h2>Best Meeting Point</h2>
-              <p><strong>{bestLocations[0].name || "Meeting Point"}</strong></p>
-              <p>{bestLocations[0].address || "Address not available"}</p>
-              <p>Average travel time: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
-              <hr />
-              <h3>Commute times:</h3>
-              <ul>
-                {addresses.map((entry, index) => (
-                  <li key={index}>
-                    {entry.address}:{" "}
-                    {bestLocations[0].travelTimes[index] !== Infinity
-                      ? (bestLocations[0].travelTimes[index] / 60).toFixed(1)
-                      : "N/A"}{" "}
-                    min (via {entry.transport})
-                  </li>
-                ))}
-              </ul>
+        </div>
+        
+        {/* Mobile Dropdown Menu */}
+        {showMobileMenu && (
+          <div className="mobile-dropdown">
+            <div className="mobile-stats">
+              <div className="stat-item">
+                <Users size={14} />
+                <span>{locations.filter(l => l.address).length} people</span>
+              </div>
+              {bestLocations.length > 0 && (
+                <div className="stat-item">
+                  <Clock size={14} />
+                  <span>{Math.round(bestLocations[0].averageTime / 60)} min avg</span>
+                </div>
+              )}
             </div>
+            {(markers.length > 0 || bestLocations.length > 0) && (
+              <button 
+                onClick={toggleView}
+                className="mobile-view-toggle"
+              >
+                <Navigation size={16} />
+                <span>{viewMode === "form" ? "View Map" : "Back to Form"}</span>
+              </button>
+            )}
+          </div>
+        )}
+      </header>
+
+      {/* Main Content */}
+      <div className="main-content">
+        {/* Form Panel */}
+        <div className={`form-panel ${viewMode === "map" ? "hidden-mobile" : ""}`}>
+          {/* Map Preview - Mobile Only */}
+          <div className="mobile-map-preview">
+            <MapDisplay
+              center={markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
+              zoom={markers.length > 0 ? 11 : 10}
+              markers={markers}
+              selectedLocation={bestLocations.length > 0 ? bestLocations[0] : null}
+              className="w-full h-full"
+            />
+            <div className="mobile-map-overlay" />
+            <button
+              onClick={toggleView}
+              className="expand-map-btn"
+            >
+              Expand Map
+            </button>
+          </div>
+
+          {/* Form Content */}
+          <div className="form-content">
+            {/* Venue Type */}
+            <div className="venue-section">
+              <label className="venue-label">
+                What kind of place?
+              </label>
+              <div className="venue-input-container">
+                <MapPin className="venue-input-icon" size={18} />
+                <input
+                  type="text"
+                  placeholder="restaurant, café, park..."
+                  value={venueType}
+                  onChange={(e) => setVenueType(e.target.value)}
+                  className="venue-input"
+                />
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="error-message">
+                {error}
+              </div>
+            )}
+
+            {/* Starting Points */}
+            <div className="starting-points-section">
+              <h2 className="section-title">Starting Points</h2>
+              
+              <div className="locations-list">
+                {locations.map((location, index) => (
+                  <div key={location.id} className="location-item">
+                    <div className="location-card">
+                      {/* Color indicator */}
+                      <div 
+                        className="location-color"
+                        style={{ backgroundColor: location.color }}
+                      />
+                      
+                      {/* Address Input */}
+                      <div className="location-input-container">
+                        <Search className="location-input-icon" size={16} />
+                        <input
+                          type="text"
+                          value={location.address}
+                          onChange={(e) => handleAddressChange(location.id, e.target.value)}
+                          placeholder={`Person ${index + 1}'s location...`}
+                          className="location-input"
+                        />
+                      </div>
+                      
+                      {/* Transport Mode Button */}
+                      <button
+                        onClick={() => handleToggleTravelMode(location.id)}
+                        className={`transport-btn ${TravelModes[location.transport]?.className}`}
+                        title={TravelModes[location.transport]?.label}
+                      >
+                        {TravelModes[location.transport]?.icon}
+                      </button>
+                      
+                      {/* Remove Button */}
+                      {locations.length > 2 && (
+                        <button
+                          onClick={() => handleRemoveAddress(location.id)}
+                          className="remove-btn"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Add Person Button */}
+              {locations.length < 8 && (
+                <button
+                  onClick={handleAddAddress}
+                  className="add-person-btn"
+                >
+                  <Plus size={20} />
+                  <span>Add another person</span>
+                </button>
+              )}
+            </div>
+
+            {/* Find Meeting Point Button */}
+            <button
+              onClick={handleFindMeetingPoint}
+              disabled={isCalculating}
+              className="find-btn"
+            >
+              {isCalculating ? (
+                <>
+                  <Loader className="loading-spinner" size={20} />
+                  <span>Finding best spot...</span>
+                </>
+              ) : (
+                <>
+                  <MapPin size={20} />
+                  <span>Find Meeting Point</span>
+                </>
+              )}
+            </button>
+
+            {/* Results */}
+            {bestLocations.length > 0 && bestLocations[0] && (
+              <div className="results-section">
+                {/* Header */}
+                <div className="results-header">
+                  <div className="results-header-content">
+                    <h3 className="results-title">Perfect Meeting Spot!</h3>
+                    <div className="results-time-badge">
+                      <Clock size={16} />
+                      <span>
+                        {Math.round(bestLocations[0].averageTime / 60)} min avg
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <div className="results-content">
+                  <h4 className="venue-name">
+                    {bestLocations[0].name}
+                  </h4>
+                  <p className="venue-address">
+                    {bestLocations[0].address}
+                  </p>
+                  
+                  {/* Rating */}
+                  {bestLocations[0].rating && (
+                    <div className="venue-rating">
+                      <div className="rating-stars">
+                        <Star size={16} style={{ color: '#f59e0b', fill: '#f59e0b' }} />
+                        <span className="rating-text">
+                          {bestLocations[0].rating}
+                        </span>
+                      </div>
+                      <span className="rating-count">
+                        ({bestLocations[0].userRatingsTotal} reviews)
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Travel Times */}
+                  <div className="travel-times-section">
+                    <h5 className="travel-times-title">Travel times:</h5>
+                    <div className="travel-times-list">
+                      {locations.map((entry, index) => {
+                        if (!entry.address) return null;
+                        
+                        const travelTime = bestLocations[0].travelTimes?.[index];
+                        const minutes = travelTime ? Math.round(travelTime / 60) : 'N/A';
+                        
+                        return (
+                          <div key={index} className="travel-time-item">
+                            <div className="travel-time-from">
+                              <div 
+                                className="travel-time-color"
+                                style={{ backgroundColor: entry.color }}
+                              />
+                              <span className="travel-time-address">
+                                {entry.address.split(',')[0]}
+                              </span>
+                            </div>
+                            <div className="travel-time-details">
+                              <span className="travel-time-value">{minutes} min</span>
+                              <div className={`travel-mode-icon ${TravelModes[entry.transport]?.className}`}>
+                                {React.cloneElement(TravelModes[entry.transport]?.icon, { size: 12 })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* Share Button */}
+                  <button className="share-btn">
+                    <Share2 size={18} />
+                    <span>Share Meeting Point</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Map Panel */}
+        <div className={`map-panel ${viewMode === "form" ? "hidden-mobile" : ""}`}>
+          <MapDisplay
+            center={markers.length > 0 ? markers[markers.length - 1] : MAP_CENTER}
+            zoom={markers.length > 0 ? 11 : 10}
+            markers={markers}
+            selectedLocation={bestLocations.length > 0 ? bestLocations[0] : null}
+            className="w-full h-full"
+          />
+          
+          {/* Back to Form Button - Mobile */}
+          {viewMode === "map" && (
+            <button
+              onClick={toggleView}
+              className="back-to-form-btn"
+            >
+              <ChevronDown size={16} />
+              <span>Back to Form</span>
+            </button>
           )}
         </div>
-        {/* RIGHT CONTAINER (Map) */}
-        <div style={{ width: "50%", height: "100%" }}>
-          <GoogleMap
-            mapContainerStyle={{ width: "100%", height: "100%" }}
-            center={MAP_CENTER}
-            zoom={12}
-            options={{ styles: MAP_STYLES, disableDefaultUI: true, zoomControl: true }}
-          >
-            {markers.map((position, index) => (
-              <Marker key={index} position={position} />
-            ))}
-            {bestLocations.length > 0 && (
-              <Marker
-                position={bestLocations[0].location}
-                icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }}
-                onClick={() => setMeetingInfoOpen(true)}
-              />
-            )}
-            {meetingInfoOpen && bestLocations.length > 0 && (
-              <InfoWindow
-                position={bestLocations[0].location}
-                onCloseClick={() => setMeetingInfoOpen(false)}
-              >
-                <div style={{ background: "#f0f0f0", color: "#333", padding: "10px", borderRadius: "5px" }}>
-                  <h3>{bestLocations[0].name || "Meeting Point"}</h3>
-                  <p>{bestLocations[0].address || "Address not available"}</p>
-                  <p>Average travel time: {(bestLocations[0].averageTime / 60).toFixed(1)} min</p>
-                </div>
-              </InfoWindow>
-            )}
-          </GoogleMap>
-        </div>
       </div>
-    </LoadScript>
+    </div>
   );
 };
 
