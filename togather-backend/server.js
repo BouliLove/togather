@@ -77,9 +77,10 @@ const lookupVenue = async (location, keyword) => {
 
 const app = express();
 const allowedOrigins = [
-  "http://localhost:3000",  // if you're testing locally
-  "http://localhost:5173",  // if you're using Vite's default port
-  "https://www.togather.fr"  // your live frontend domain
+  "http://localhost:3000",  // when testing locally
+  "http://localhost:5173",  // Vite's default port
+  "https://www.togather.fr",  // live frontend domain
+  "https://togather.fr"
 ];
 app.use(express.json());
 app.use(
