@@ -742,3 +742,27 @@ html, body, #root {
     display: none !important;
   }
 }
+
+/* Override index.css button styles for transport buttons */
+.location-card .transport-btn {
+  background-color: unset !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  border: none !important;
+}
+
+.transport-btn.transport-walking {
+  background-color: #10b981 !important;
+}
+
+.transport-btn.transport-bicycling {
+  background-color: #f59e0b !important;
+}
+
+.transport-btn.transport-transit {
+  background-color: #8b5cf6 !important;
+}
+
+.transport-btn.transport-driving {
+  background-color: #3b82f6 !important;
+}
