@@ -19,10 +19,26 @@ const BACKEND_URL = "https://api.togather.fr"
 const MAP_CENTER = { lat: 48.8566, lng: 2.3522 };
 
 const TravelModes = {
-  WALKING: { icon: <Footprints size={18} />, label: "Walking", className: "transport-walking" },
-  BICYCLING: { icon: <Bike size={18} />, label: "Bicycling", className: "transport-bicycling" },
-  TRANSIT: { icon: <Train size={18} />, label: "Transit", className: "transport-transit" },
-  DRIVING: { icon: <Car size={18} />, label: "Driving", className: "transport-driving" }
+  WALKING: { 
+    icon: <Footprints size={18} />, 
+    label: "Walking", 
+    className: "transport-walking" 
+  },
+  BICYCLING: { 
+    icon: <Bike size={18} />, 
+    label: "Bicycling", 
+    className: "transport-bicycling" 
+  },
+  TRANSIT: { 
+    icon: <Train size={18} />, 
+    label: "Transit", 
+    className: "transport-transit" 
+  },
+  DRIVING: { 
+    icon: <Car size={18} />, 
+    label: "Driving", 
+    className: "transport-driving" 
+  }
 };
 
 const COLORS = ['#EF4444', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4', '#84CC16'];

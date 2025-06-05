@@ -329,6 +329,7 @@ html, body, #root {
 }
 
 /* Transport buttons */
+/* TRANSPORT BUTTON ICON FIX - Add this at the end of App.css */
 .transport-btn {
   display: flex !important;
   align-items: center !important;
@@ -336,31 +337,68 @@ html, body, #root {
   width: 40px !important;
   height: 40px !important;
   border-radius: 8px !important;
-  color: white !important;
   border: none !important;
   cursor: pointer !important;
   transition: transform 0.2s !important;
   flex-shrink: 0 !important;
+  /* Force icon color */
+  color: white !important;
 }
 
-.transport-btn:hover {
-  transform: scale(1.05);
+/* Very specific SVG targeting */
+.transport-btn > svg {
+  color: white !important;
+  stroke: white !important;
+  fill: none !important;
+  width: 18px !important;
+  height: 18px !important;
 }
 
+/* Even more specific targeting */
+.location-card .transport-btn svg {
+  color: white !important;
+  stroke: white !important;
+}
+
+/* Individual transport mode overrides */
 .transport-walking {
   background: #10b981 !important;
+  color: white !important;
+}
+
+.transport-walking svg {
+  color: white !important;
+  stroke: white !important;
 }
 
 .transport-bicycling {
   background: #f59e0b !important;
+  color: white !important;
+}
+
+.transport-bicycling svg {
+  color: white !important;
+  stroke: white !important;
 }
 
 .transport-transit {
   background: #8b5cf6 !important;
+  color: white !important;
+}
+
+.transport-transit svg {
+  color: white !important;
+  stroke: white !important;
 }
 
 .transport-driving {
   background: #3b82f6 !important;
+  color: white !important;
+}
+
+.transport-driving svg {
+  color: white !important;
+  stroke: white !important;
 }
 
 .remove-btn {
