@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "heroku-postbuild": "cd togather-backend && npm install"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.5",
