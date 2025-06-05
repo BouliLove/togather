@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MapPin, X, Bike, Car, Train, Footprints, Plus, Loader, Share2, Search, ChevronUp, ChevronDown, Users, Clock, Star, Navigation, Menu } from 'lucide-react';
+import axios from 'axios';
 
 // Mock MapDisplay component
 const MapDisplay = ({ center, zoom, markers, selectedLocation, className }) => (
@@ -13,6 +14,8 @@ const MapDisplay = ({ center, zoom, markers, selectedLocation, className }) => (
 );
 
 // Constants
+const BACKEND_URL = "https://api.togather.fr"
+
 const MAP_CENTER = { lat: 48.8566, lng: 2.3522 };
 
 const TravelModes = {
@@ -82,30 +85,45 @@ const App = () => {
       setError("Please enter at least two valid addresses");
       return;
     }
-
+  
     setIsCalculating(true);
     setError(null);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Real API call to your backend
+      const response = await axios.post(`${BACKEND_URL}/compute-location`, {
+        locations: validAddresses.map(addr => ({
+          address: addr.address,
+          transport: addr.transport.toLowerCase()
+        }))
+      });
+      
+      const result = response.data.bestLocation;
+      
+      // Format the result to match your frontend expectations
       setBestLocations([{
-        name: "Café Central",
-        address: "Place du Châtelet, Paris",
-        location: { lat: 48.8583, lng: 2.3472 },
-        averageTime: 900, // 15 minutes
-        rating: 4.3,
-        userRatingsTotal: 245,
-        travelTimes: [720, 840, 960, 1080],
-        alternativeVenues: [
-          { name: "Brasserie Lipp", averageTime: 1020 },
-          { name: "Le Procope", averageTime: 1140 }
-        ]
+        name: result.name,
+        address: result.address,
+        location: result.location,
+        averageTime: result.averageTime,
+        rating: result.rating || null,
+        userRatingsTotal: result.userRatingsTotal || null,
+        travelTimes: result.travelTimes,
+        placeId: result.placeId
       }]);
+      
       setIsCalculating(false);
+      
+      // Switch to map view on mobile
       if (window.innerWidth < 768) {
         setViewMode("map");
       }
-    }, 2000);
+      
+    } catch (error) {
+      console.error('Error finding meeting point:', error);
+      setError(error.response?.data?.error || 'Failed to find meeting point. Please try again.');
+      setIsCalculating(false);
+    }
   };
 
   const toggleView = () => {
